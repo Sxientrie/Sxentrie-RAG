@@ -11,6 +11,16 @@ interface State {
   error: Error | null;
 }
 
+function reportErrorToService(error: Error, errorInfo: React.ErrorInfo) {
+    // In a real application, this would send the error to a monitoring service
+    // like Sentry, Bugsnag, Datadog, etc.
+    console.log("Reporting error to service:", {
+        error: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack
+    });
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
@@ -23,6 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error(`Uncaught error in ${this.props.name}:`, error, errorInfo);
+    reportErrorToService(error, errorInfo);
   }
   
   private handleReset = () => {

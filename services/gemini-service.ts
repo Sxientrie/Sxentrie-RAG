@@ -2,12 +2,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GitHubFile, AnalysisConfig, GEMINI_MODEL_NAME, ANALYSIS_SCOPES, AnalysisResults } from '../constants';
 import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE } from "../config";
 
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ALLOWED_EXTENSIONS = new Set(['js', 'ts', 'py', 'go', 'java', 'html', 'css', 'md', 'json', 'jsx', 'tsx', 'sh', 'yml', 'yaml', 'rb', 'php', 'c', 'cpp', 'cs', 'rs']);
+const SPECIFIC_FILENAMES = new Set(['dockerfile']);
+const IGNORED_PATTERNS = [/\.min\.js$/i, /\.lock$/i];
 
 const fetchFileContents = async (files: GitHubFile[]): Promise<string> => {
     const limitedFiles = files.slice(0, MAX_GEMINI_FILE_COUNT);
@@ -17,12 +14,16 @@ const fetchFileContents = async (files: GitHubFile[]): Promise<string> => {
             if (!file.download_url) return '';
             try {
                 const res = await fetch(file.download_url!);
-                if (!res.ok) return `--- Error fetching ${file.path}: ${res.statusText} ---`;
+                if (!res.ok) {
+                    console.warn(`--- Error fetching ${file.path}: ${res.statusText} ---`);
+                    return '';
+                }
                 const text = await res.text();
                 const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + "\n... (file truncated)" : text;
                 return `--- File: ${file.path} ---\n${cappedText}`;
             } catch (e) {
-                return `--- Error fetching ${file.path}: ${(e as Error).message} ---`;
+                console.error(`--- Error fetching ${file.path}: ${(e as Error).message} ---`);
+                return '';
             }
         })
     );
@@ -33,7 +34,14 @@ const collectAllFiles = (nodes: GitHubFile[]): GitHubFile[] => {
     let files: GitHubFile[] = [];
     for (const node of nodes) {
         if (node.type === 'file' && node.download_url) {
-            if (/\.(js|ts|py|go|java|html|css|md|json|jsx|tsx|sh|yml|yaml|dockerfile|rb|php|c|cpp|cs|rs)$/i.test(node.name) && !/(\.min\.js|\.lock)$/i.test(node.name)) {
+            const fileName = node.name.toLowerCase();
+            const extension = fileName.split('.').pop();
+
+            const isAllowedExtension = extension && ALLOWED_EXTENSIONS.has(extension);
+            const isSpecificFilename = SPECIFIC_FILENAMES.has(fileName);
+            const isIgnored = IGNORED_PATTERNS.some(pattern => pattern.test(fileName));
+
+            if ((isAllowedExtension || isSpecificFilename) && !isIgnored) {
                 files.push(node);
             }
         }
@@ -53,6 +61,12 @@ export const runCodeAnalysis = async (
 ): Promise<AnalysisResults> => {
     onProgress('Initializing analysis engine');
     
+    const API_KEY = process.env.API_KEY;
+    if (!API_KEY) {
+        throw new Error("API_KEY environment variable not set. Analysis cannot be performed.");
+    }
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
+
     let fileContentsString: string;
     let analysisTarget: string;
     let isSingleFile = false;
@@ -75,7 +89,7 @@ export const runCodeAnalysis = async (
         if (isSingleFile) {
             throw new Error("The selected file is empty or could not be read.");
         }
-        throw new Error("Could not fetch content from any files in the repository. The repository might be empty or contain only unsupported file types.");
+        throw new Error("Could not fetch content from any files in the repository. The repository might be empty or contain only supported file types.");
     }
     
     onProgress('Constructing prompts for Gemini');

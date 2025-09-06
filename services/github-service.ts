@@ -26,10 +26,23 @@ export const parseGitHubUrl = (url: string): RepoInfo | null => {
 };
 
 export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`);
+    const repoDetailsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+    if (!repoDetailsResponse.ok) {
+        if (repoDetailsResponse.status === 404) throw new ApiError('Repository not found.');
+        if (repoDetailsResponse.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait and try again.');
+        throw new ApiError(`GitHub API Error: ${repoDetailsResponse.statusText}`);
+    }
+    const repoDetails = await repoDetailsResponse.json();
+    const defaultBranch = repoDetails.default_branch;
+
+    if (!defaultBranch) {
+        throw new ApiError('Could not determine the default branch for this repository.');
+    }
+
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`);
     if (!response.ok) {
-        if (response.status === 404) throw new ApiError('Repository not found or the main branch does not exist.');
-        if (response.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait a few minutes and try again.');
+        if (response.status === 404) throw new ApiError(`Default branch '${defaultBranch}' not found or repository is empty.`);
+        if (response.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait and try again.');
         throw new ApiError(`GitHub API Error: ${response.statusText}`);
     }
     const { tree, truncated } = await response.json();
@@ -53,7 +66,7 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
                         name: part,
                         path: file.path,
                         type: isLastPart ? (file.type === 'tree' ? 'dir' : 'file') : 'dir',
-                        download_url: isLastPart && file.type === 'blob' ? `https://raw.githubusercontent.com/${owner}/${repo}/main/${file.path}` : null,
+                        download_url: isLastPart && file.type === 'blob' ? `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${file.path}` : null,
                         content: {}
                     };
                 }

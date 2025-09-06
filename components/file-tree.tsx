@@ -16,50 +16,6 @@ import {
     FileType
 } from 'lucide-react';
 
-const styleSheet = `
-ul.file-tree {
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
-  overflow: hidden;
-}
-.file-tree li {
-  padding: 0;
-}
-.tree-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  padding: 2px 5px;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) - 4px);
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-  color: var(--muted-foreground);
-  user-select: none;
-}
-.tree-item:hover {
-  background-color: oklch(100% 0 0 / 0.05);
-}
-.tree-item.selected {
-    background-color: oklch(65% 0.12 145 / 0.2);
-    color: var(--primary);
-    border-color: var(--primary);
-}
-.tree-item-icon {
-  transition: transform 0.2s ease-in-out;
-}
-.tree-item-icon.open {
-  transform: rotate(90deg);
-}
-.tree-item span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.85rem;
-}
-`;
-
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const lowerCaseFileName = fileName.toLowerCase();
@@ -139,7 +95,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 tabIndex={0}
                 aria-label={`Select ${isDir ? 'directory' : 'file'} ${item.name}`}
             >
-                {isDir ? <ChevronRight size={12} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <div style={{width: '12px'}}></div>}
+                {isDir ? <ChevronRight size={12} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <span className="tree-item-spacer"></span>}
                 {isDir ? <Folder size={12} /> : getFileIcon(item.name)}
                 <span>{item.name}</span>
             </div>
@@ -184,8 +140,6 @@ export const FileTree: FC<{
   };
 
   return (
-    <>
-      <style>{styleSheet}</style>
       <ul className="file-tree">
         {files.map(file => (
             <TreeItem 
@@ -199,6 +153,5 @@ export const FileTree: FC<{
             />
         ))}
       </ul>
-    </>
   );
 };

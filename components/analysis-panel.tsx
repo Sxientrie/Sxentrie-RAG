@@ -8,126 +8,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { coldarkDark } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../utils/get-language';
 
-const styleSheet = `
-.analysis-panel .panel-content { gap: 0.75rem; }
-
-.panel-action-btn {
-    background: none; border: none; color: var(--muted-foreground);
-    cursor: pointer; padding: 4px; border-radius: var(--radius);
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: all 0.2s ease;
-}
-.panel-action-btn:hover:not(:disabled) {
-    background-color: oklch(100% 0 0 / 0.1); color: var(--foreground);
-}
-.panel-action-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-
-.analysis-config-wrapper {
-    transition: max-height 0.3s ease-in-out;
-    overflow: hidden;
-    max-height: 200px;
-    flex-shrink: 0;
-}
-.analysis-config-wrapper.collapsed {
-    max-height: 0;
-}
-
-.analysis-config { display: flex; flex-direction: column; gap: 1rem; }
-.custom-rules textarea {
-    width: 100%; min-height: 60px; background-color: var(--background); border: 1px solid var(--border);
-    border-radius: var(--radius); color: var(--foreground); padding: 0.5rem; resize: vertical;
-    font-family: var(--font-family-sans); font-size: 0.9rem;
-}
-.run-analysis-btn {
-  padding: 0.4rem 1rem;
-  border: none;
-  border-radius: var(--radius);
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  white-space: nowrap;
-  font-size: 0.9rem;
-}
-.run-analysis-btn:hover:not(:disabled) { background-color: oklch(70% 0.12 145); }
-.run-analysis-btn:disabled { background-color: oklch(28% 0 0); cursor: not-allowed; color: oklch(48% 0 0);}
-
-.placeholder-top {
-    flex-grow: 1;
-    height: auto;
-    justify-content: flex-start;
-    margin-top: 0.75rem;
-    padding-top: 1rem;
-}
-
-.analysis-results {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    min-height: 0;
-}
-.analysis-results .tabs {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.75rem;
-    flex-shrink: 0;
-}
-.tabs-nav { display: flex; }
-
-.analysis-results .tab-btn {
-    padding: 0.5rem 1rem; border: none; background-color: transparent;
-    color: var(--muted-foreground); cursor: pointer; position: relative; font-size: 0.9rem;
-}
-.analysis-results .tab-btn.active { color: var(--primary); }
-.analysis-results .tab-btn.active::after {
-    content: ''; position: absolute; bottom: -1px; left: 0; width: 100%;
-    height: 2px; background-color: var(--primary);
-}
-.tab-content {
-    animation: fadeIn 0.5s;
-    flex-grow: 1;
-    min-height: 0;
-    overflow-y: auto;
-}
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.review-finding {
-    border: 1px solid var(--border); border-radius: var(--radius);
-    margin-bottom: 0.75rem; background-color: oklch(23% 0 0); overflow: hidden;
-}
-.review-finding-header {
-    padding: 0.5rem 1rem; background-color: oklch(28% 0 0); font-family: var(--font-family-mono);
-    border-bottom: 1px solid var(--border); font-size: 0.85rem;
-}
-.review-finding-body {
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-.review-finding-body.markdown-content p {
-    margin: 0;
-}
-.review-finding-body > h4 {
-    margin: 0;
-    color: var(--foreground);
-    font-weight: 500;
-    font-size: 1rem;
-}
-.code-block-wrapper {
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background-color: var(--background);
-}
-`;
-
 const Finding: FC<{finding: TechnicalReviewFinding}> = ({ finding }) => {
     const language = getLanguage(finding.fileName);
 
@@ -163,7 +43,7 @@ const Finding: FC<{finding: TechnicalReviewFinding}> = ({ finding }) => {
 interface AnalysisPanelProps {
     results: AnalysisResults | null;
     config: AnalysisConfig;
-    setConfig: (config: AnalysisConfig) => void;
+    setConfig: (config: Partial<AnalysisConfig>) => void;
     isLoading: boolean;
     loadingMessage?: string;
     error: string | null;
@@ -187,44 +67,47 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
         if (!results || !repoInfo) return;
 
         const reportDate = new Date().toUTCString();
-        let md = `# Sxentrie Analysis Report for ${repoInfo.repo}\n\n`;
-        md += `**Repository:** https://github.com/${repoInfo.owner}/${repoInfo.repo}\n`;
-        md += `**Report Generated:** ${reportDate}\n\n`;
-        md += `## Analysis Configuration\n\n`;
+        const reportParts: string[] = [];
+
+        reportParts.push(`# Sxentrie Analysis Report for ${repoInfo.repo}\n\n`);
+        reportParts.push(`**Repository:** https://github.com/${repoInfo.owner}/${repoInfo.repo}\n`);
+        reportParts.push(`**Report Generated:** ${reportDate}\n\n`);
+        reportParts.push(`## Analysis Configuration\n\n`);
 
         if (config.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
-            md += `*   **Scope:** Selected File (\`${selectedFile.path}\`)\n`;
+            reportParts.push(`*   **Scope:** Selected File (\`${selectedFile.path}\`)\n`);
         } else {
-            md += `*   **Scope:** Entire Repository\n`;
+            reportParts.push(`*   **Scope:** Entire Repository\n`);
         }
         if (config.customRules) {
-            md += `*   **Custom Directives:** \n\`\`\`\n${config.customRules}\n\`\`\`\n`;
+            reportParts.push(`*   **Custom Directives:** \n\`\`\`\n${config.customRules}\n\`\`\`\n`);
         } else {
-            md += `*   **Custom Directives:** None\n`;
+            reportParts.push(`*   **Custom Directives:** None\n`);
         }
-        md += `\n---\n\n`;
+        reportParts.push(`\n---\n\n`);
 
-        md += `## Project Overview\n\n${results.overview}\n\n---\n\n`;
+        reportParts.push(`## Project Overview\n\n${results.overview}\n\n---\n\n`);
         
-        md += `## Technical Review\n\n`;
+        reportParts.push(`## Technical Review\n\n`);
         if (results.review.length === 0) {
-            md += `No specific technical issues were found based on the provided criteria.\n`;
+            reportParts.push(`No specific technical issues were found based on the provided criteria.\n`);
         } else {
             results.review.forEach((finding, index) => {
-                md += `### ${index + 1}. ${finding.finding}\n\n`;
-                md += `**File:** \`${finding.fileName}\`\n\n`;
+                reportParts.push(`### ${index + 1}. ${finding.finding}\n\n`);
+                reportParts.push(`**File:** \`${finding.fileName}\`\n\n`);
                 finding.explanation.forEach(step => {
                     if (step.type === 'text') {
-                        md += `${step.content}\n\n`;
+                        reportParts.push(`${step.content}\n\n`);
                     } else if (step.type === 'code') {
                         const language = getLanguage(finding.fileName);
-                        md += `\`\`\`${language}\n${step.content}\n\`\`\`\n\n`;
+                        reportParts.push(`\`\`\`${language}\n${step.content}\n\`\`\`\n\n`);
                     }
                 });
-                md += `\n`;
+                reportParts.push(`\n`);
             });
         }
-
+        
+        const md = reportParts.join('');
         const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -259,6 +142,7 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                 onClick={() => setIsConfigCollapsed(prev => !prev)}
                 title={isConfigCollapsed ? "Show configuration" : "Hide configuration"}
                 aria-label={isConfigCollapsed ? "Show configuration" : "Hide configuration"}
+                aria-expanded={!isConfigCollapsed}
             >
                 <ConfigCollapseIcon size={14} />
             </button>
@@ -267,8 +151,6 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
 
 
     return (
-        <>
-        <style>{styleSheet}</style>
         <Panel
             className="analysis-panel"
             title={panelTitle}
@@ -281,7 +163,7 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                         <textarea 
                             placeholder='Guide the analysis engine with specific instructions, e.g., "Focus on security vulnerabilities" or "Ignore styling issues and check for performance bottlenecks."'
                             value={config.customRules}
-                            onChange={(e) => setConfig({ ...config, customRules: e.target.value})}
+                            onChange={(e) => setConfig({ customRules: e.target.value})}
                             disabled={isLoading}
                         />
                     </div>
@@ -295,7 +177,7 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                                         name="scope"
                                         value={ANALYSIS_SCOPES.ALL}
                                         checked={config.scope === ANALYSIS_SCOPES.ALL}
-                                        onChange={() => setConfig({ ...config, scope: ANALYSIS_SCOPES.ALL })}
+                                        onChange={() => setConfig({ scope: ANALYSIS_SCOPES.ALL })}
                                         disabled={isLoading}
                                     />
                                     <span className="custom-radio"></span>
@@ -308,7 +190,7 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                                         name="scope"
                                         value={ANALYSIS_SCOPES.FILE}
                                         checked={config.scope === ANALYSIS_SCOPES.FILE}
-                                        onChange={() => setConfig({ ...config, scope: ANALYSIS_SCOPES.FILE })}
+                                        onChange={() => setConfig({ scope: ANALYSIS_SCOPES.FILE })}
                                         disabled={isLoading || isFileAnalysisDisabled}
                                     />
                                     <span className="custom-radio"></span>
@@ -379,6 +261,5 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                 </div>
             )}
         </Panel>
-        </>
     );
 };

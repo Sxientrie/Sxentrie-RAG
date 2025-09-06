@@ -21,102 +21,6 @@ const customStyle = {
     }
 };
 
-const styleSheet = `
-.file-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-shrink: 0;
-}
-.file-action-btn {
-    background: none;
-    border: none;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: var(--radius);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-.file-action-btn:hover:not(:disabled) {
-    background-color: oklch(100% 0 0 / 0.1);
-    color: var(--foreground);
-}
-.file-action-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.image-viewer-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    padding: 1rem;
-    background-color: var(--background);
-    border-radius: var(--radius);
-}
-.image-preview {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: calc(var(--radius) - 4px);
-}
-.onboarding-guide {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1rem;
-    padding: 1rem;
-    max-width: 500px;
-}
-.onboarding-guide h3 {
-    font-size: 1.25rem;
-    color: var(--foreground);
-    margin: 0;
-}
-.onboarding-guide > p {
-    color: var(--muted-foreground);
-    margin: 0;
-}
-.onboarding-guide ol {
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    text-align: left;
-    align-items: flex-start;
-}
-.onboarding-guide li {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    font-size: 0.95rem;
-    color: var(--muted-foreground);
-}
-.onboarding-guide li strong {
-    color: var(--foreground);
-}
-.onboarding-guide .step-icon {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--primary);
-}
-`;
-
-
 interface FileViewerProps {
   file: { path: string; content: string; url?: string; isImage?: boolean } | null;
   isRepoLoaded: boolean;
@@ -132,6 +36,7 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
         setTimeout(() => setIsCopied(false), 2000);
     }).catch(err => {
         console.error('Failed to copy text: ', err);
+        alert('Failed to copy file content to clipboard. Please try again.');
     });
   };
 
@@ -141,27 +46,27 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
       const fileName = file.path.split('/').pop() || 'download';
       let blob;
       
-      if (file.isImage && file.url) {
-        try {
+      try {
+        if (file.isImage && file.url) {
             const response = await fetch(file.url);
             if (!response.ok) throw new Error('Network response was not ok');
             blob = await response.blob();
-        } catch (error) {
-            console.error('Failed to download image:', error);
-            return;
+        } else {
+            blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
         }
-      } else {
-        blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
-      }
 
-      if (blob) {
-        const link = document.createElement('a');
-        link.download = fileName;
-        link.href = window.URL.createObjectURL(blob);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(link.href);
+        if (blob) {
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = window.URL.createObjectURL(blob);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(link.href);
+        }
+      } catch (error) {
+          console.error('Failed to download file:', error);
+          alert('Failed to download file. Please check the console for more details.');
       }
   };
   
@@ -223,8 +128,6 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
   };
 
   return (
-    <>
-    <style>{styleSheet}</style>
     <Panel
         className="file-viewer-panel"
         title={panelTitle}
@@ -252,6 +155,5 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
         </div>
       )}
     </Panel>
-    </>
   );
 };

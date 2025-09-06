@@ -21,7 +21,7 @@ export const Panel: FC<PanelProps> = ({ children, className, title, actions, isC
     <div className={`panel ${className || ''} ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="panel-header">
             <div className="panel-title-wrapper">
-                {!isCollapsed && <h2 className="panel-title">{title}</h2>}
+                <h2 className="panel-title" aria-hidden={isCollapsed}>{title}</h2>
             </div>
             <div className="panel-actions-wrapper">
                 {!isCollapsed && actions}
@@ -31,6 +31,7 @@ export const Panel: FC<PanelProps> = ({ children, className, title, actions, isC
                         onClick={onToggleCollapse}
                         title={isCollapsed ? "Expand Panel" : "Collapse Panel"}
                         aria-label={isCollapsed ? "Expand Panel" : "Collapse Panel"}
+                        aria-expanded={!isCollapsed}
                     >
                         <CollapseIcon size={14} />
                     </button>
