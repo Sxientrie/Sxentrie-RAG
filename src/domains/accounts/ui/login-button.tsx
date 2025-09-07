@@ -8,17 +8,17 @@ export const LoginButton: FC = () => {
 
   if (isAuthenticated && user) {
     return (
-      <div className="user-info" onClick={logout} tabIndex={0} role="button" title="Click to Logout">
+      <button className="btn btn-xs btn-outline" onClick={logout} title="Click to Logout">
         <img src={user.avatarUrl} alt={`${user.name}'s avatar`} className="user-avatar" />
         <span className="user-name">{user.name}</span>
-        <LogOut size={14} />
-      </div>
+        <LogOut size={12} />
+      </button>
     );
   }
 
   return (
-    <button className="login-btn" onClick={login} disabled={isLoading}>
-      <LogIn size={14} />
+    <button className="btn btn-xs btn-outline" onClick={login} disabled={isLoading}>
+      <LogIn size={12} />
       <span>{isLoading ? 'Logging in...' : 'Login with GitHub'}</span>
     </button>
   );

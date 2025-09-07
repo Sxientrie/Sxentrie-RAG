@@ -1,6 +1,7 @@
+
 export const getLanguage = (path: string): string => {
     const fileName = path.split('/').pop()?.toLowerCase() || '';
-    const extension = fileName.split('.').pop();
+    const extension = fileName.split('.').pop()?.toLowerCase();
 
     if (fileName === 'dockerfile') return 'dockerfile';
     if (fileName === 'go.mod') return 'gomod';

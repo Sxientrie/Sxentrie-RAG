@@ -12,7 +12,7 @@ export const GitHubCallbackHandler: FC = () => {
       if (code) {
         try {
           dispatch({ type: 'LOGIN_START' });
-          
+
           const response = await fetch('/api/auth/github', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -24,11 +24,8 @@ export const GitHubCallbackHandler: FC = () => {
           if (!response.ok) {
             throw new Error(data.error || 'Failed to authenticate.');
           }
-          
-          // On success, update the global state with the user data from our server
+
           dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data } });
-          
-          // Redirect to the home page
           window.location.assign('/');
 
         } catch (error) {
@@ -37,7 +34,7 @@ export const GitHubCallbackHandler: FC = () => {
         }
       } else {
         const error = params.get('error_description') || "Authentication failed: No code received from GitHub.";
-        dispatch({ type: 'LOGIN_ERROR', payload: { error }});
+        dispatch({ type: 'LOGIN_ERROR', payload: { error } });
       }
     };
 

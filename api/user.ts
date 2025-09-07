@@ -17,7 +17,10 @@ export default async function handler(request: ServerlessRequest) {
   }
 
   // A simple cookie parser
-  const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
+  const cookies = Object.fromEntries(cookieHeader.split(';').map(c => {
+    const parts = c.trim().split('=', 2);
+    return [parts[0], parts[1] || '']; // Ensure a value is always present
+  }));
   const sessionJwt = cookies.session;
 
   if (!sessionJwt) {
@@ -25,11 +28,9 @@ export default async function handler(request: ServerlessRequest) {
   }
 
   try {
-    // Verify the JWT is valid and signed with our secret
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(sessionJwt, secret);
 
-    // Return the user profile from the JWT payload
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

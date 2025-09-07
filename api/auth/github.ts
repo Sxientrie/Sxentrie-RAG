@@ -14,7 +14,7 @@ export default async function handler(request: ServerlessRequest) {
 
   const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
   const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
-  const JWT_SECRET = process.env.JWT_SECRET; // A new, required secret
+  const JWT_SECRET = process.env.JWT_SECRET;
 
   if (!JWT_SECRET) {
     return new Response(JSON.stringify({ error: 'JWT_SECRET environment variable is not set.' }), { status: 500 });
@@ -49,7 +49,7 @@ export default async function handler(request: ServerlessRequest) {
     });
 
     const userData = await userResponse.json();
-    
+
     const userProfile = {
       id: userData.id,
       name: userData.name || userData.login,
@@ -64,7 +64,7 @@ export default async function handler(request: ServerlessRequest) {
       .setIssuedAt()
       .setExpirationTime('30d')
       .sign(secret);
-    
+
     const cookie = `session=${jwt}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000`; // Max-Age = 30 days
 
     // Step 4: Return the user profile and set the JWT cookie

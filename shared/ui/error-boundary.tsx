@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 <AlertTriangle size={48} strokeWidth={1} color="var(--error)" />
                 <h4 className="error-boundary-title">Error in {this.props.name}</h4>
                 <p>Something went wrong while rendering this section.</p>
-                <button onClick={this.handleReset} className="error-boundary-reset-btn">
+                <button onClick={this.handleReset} className="btn btn-sm btn-outline">
                     <RotateCw size={14} /> Try Again
                 </button>
              </div>

@@ -1,24 +1,24 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { coldarkDark } from 'react-syntax-highlighter/dist/esm/styles/prism/';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
 
 const customStyle = {
-    ...coldarkDark,
+    ...vscDarkPlus,
     'pre[class*="language-"]': {
-        ...coldarkDark['pre[class*="language-"]'],
+        ...vscDarkPlus['pre[class*="language-"]'],
         backgroundColor: 'var(--background)',
         margin: 0,
         padding: '1rem',
         height: '100%',
     },
      'code[class*="language-"]': {
-        ...coldarkDark['code[class*="language-"]'],
+        ...vscDarkPlus['code[class*="language-"]'],
         fontFamily: 'var(--font-family-mono)',
-        fontSize: '0.9rem',
+        fontSize: '0.8rem',
     }
 };
 
@@ -27,9 +27,22 @@ interface FileViewerProps {
 }
 
 export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
-  const { state: { selectedFile, repoInfo } } = useRepository();
+  const { state: { selectedFile, repoInfo, activeLineRange, findingsMap } } = useRepository();
   const [isCopied, setIsCopied] = useState(false);
   const isRepoLoaded = !!repoInfo;
+
+  useEffect(() => {
+    if (activeLineRange) {
+      // Small delay to allow react-syntax-highlighter to render the new props
+      const timer = setTimeout(() => {
+        const highlightedElement = document.querySelector('.line-highlight');
+        if (highlightedElement) {
+          highlightedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeLineRange]);
 
   const handleCopy = (): void => {
     if (!selectedFile || selectedFile.isImage) return;
@@ -144,6 +157,19 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
               style={customStyle}
               showLineNumbers
               wrapLines
+              lineProps={(lineNumber) => {
+                if (activeLineRange && lineNumber >= activeLineRange.start && lineNumber <= activeLineRange.end) {
+                  return { className: 'line-highlight' };
+                }
+                return {};
+              }}
+              lineNumberStyle={(lineNumber: number) => {
+                const fileFindings = selectedFile ? findingsMap.get(selectedFile.path) : undefined;
+                if (fileFindings?.has(lineNumber)) {
+                    return { className: 'gutter-marker' } as React.CSSProperties;
+                }
+                return {};
+              }}
               customStyle={{ height: '100%', overflow: 'auto', margin: 0, borderRadius: 'var(--radius)', backgroundColor: 'var(--background)' }}
             >
               {selectedFile.content}

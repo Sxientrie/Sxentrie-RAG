@@ -97,6 +97,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 role="button"
                 tabIndex={0}
                 aria-label={`Select ${isDir ? 'directory' : 'file'} ${item.name}`}
+                data-path={item.path}
             >
                 {isDir ? <ChevronRight size={12} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <span className="tree-item-spacer"></span>}
                 {isDir ? <Folder size={12} /> : getFileIcon(item.name)}
@@ -159,8 +160,10 @@ export const FileTree: FC = () => {
             return newDirs;
         });
         
+        // Wait for the state update to re-render and reveal the element
         setTimeout(() => {
-            const selectedElement = document.querySelector(`.tree-item.selected`);
+            // Use the more reliable data-path attribute for selection
+            const selectedElement = document.querySelector(`[data-path="${selectedPath}"]`);
             if (selectedElement) {
                 selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
