@@ -40,7 +40,8 @@ type AppAction =
   | { type: 'RESET_STATE' }
   | { type: 'CLEAR_LOCAL_STORAGE_ERROR' }
   | { type: 'SET_TRANSIENT_ERROR'; payload: string | null }
-  | { type: 'SET_PANEL_WIDTHS'; payload: number[] };
+  | { type: 'SET_PANEL_WIDTHS'; payload: number[] }
+  | { type: 'RESET_PANEL_WIDTHS' };
 
 const initialState: AppState = {
   repoUrl: '',
@@ -52,7 +53,7 @@ const initialState: AppState = {
   isTreeCollapsed: false,
   localStorageError: null,
   transientError: null,
-  panelWidths: [1.2, 2, 2],
+  panelWidths: [1, 2, 1],
 };
 
 const getInitialState = (): AppState => {
@@ -75,29 +76,57 @@ const getInitialState = (): AppState => {
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
-  switch (action.type) {
-    case 'SET_REPO_URL':
-      return { ...state, repoUrl: action.payload };
-    case 'LOAD_REPO_START':
-      return { ...state, isLoading: true, loadingMessage: 'Parsing URL...', error: null, fileTree: [], repoInfo: null };
-    case 'LOAD_REPO_SUCCESS':
-      return { ...state, isLoading: false, loadingMessage: '', repoInfo: action.payload.repoInfo, fileTree: action.payload.tree };
-    case 'LOAD_REPO_ERROR':
-      return { ...state, isLoading: false, loadingMessage: '', error: action.payload };
-    case 'TOGGLE_TREE_COLLAPSE':
-      return { ...state, isTreeCollapsed: !state.isTreeCollapsed };
-    case 'RESET_STATE':
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      return { ...initialState };
-    case 'CLEAR_LOCAL_STORAGE_ERROR':
-      return { ...state, localStorageError: null };
-    case 'SET_TRANSIENT_ERROR':
-      return { ...state, transientError: action.payload };
-    case 'SET_PANEL_WIDTHS':
-      return { ...state, panelWidths: action.payload };
-    default:
-      return state;
+  const nextState = ((): AppState => {
+    switch (action.type) {
+      case 'SET_REPO_URL':
+        return { ...state, repoUrl: action.payload };
+      case 'LOAD_REPO_START':
+        return { ...state, isLoading: true, loadingMessage: 'Parsing URL...', error: null, fileTree: [], repoInfo: null };
+      case 'LOAD_REPO_SUCCESS':
+        return { ...state, isLoading: false, loadingMessage: '', repoInfo: action.payload.repoInfo, fileTree: action.payload.tree };
+      case 'LOAD_REPO_ERROR':
+        return { ...state, isLoading: false, loadingMessage: '', error: action.payload };
+      case 'TOGGLE_TREE_COLLAPSE':
+        return { ...state, isTreeCollapsed: !state.isTreeCollapsed };
+      case 'RESET_STATE':
+        return { ...initialState };
+      case 'CLEAR_LOCAL_STORAGE_ERROR':
+        return { ...state, localStorageError: null };
+      case 'SET_TRANSIENT_ERROR':
+        return { ...state, transientError: action.payload };
+      case 'SET_PANEL_WIDTHS':
+        return { ...state, panelWidths: action.payload };
+      case 'RESET_PANEL_WIDTHS':
+        return { ...state, panelWidths: initialState.panelWidths };
+      default:
+        return state;
+    }
+  })();
+
+  try {
+    switch (action.type) {
+      case 'SET_REPO_URL':
+      case 'LOAD_REPO_SUCCESS':
+      case 'SET_PANEL_WIDTHS':
+      case 'RESET_PANEL_WIDTHS': {
+        const stateToSave = {
+          repoUrl: nextState.repoUrl,
+          repoInfo: nextState.repoInfo,
+          fileTree: nextState.fileTree,
+          panelWidths: nextState.panelWidths,
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+        break;
+      }
+      case 'RESET_STATE':
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        break;
+    }
+  } catch (e) {
+    // Unable to save state, but don't crash the app.
   }
+
+  return nextState;
 };
 
 const MainLayout: FC = () => {
@@ -108,16 +137,6 @@ const MainLayout: FC = () => {
   } = state;
 
   const mainAppRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      const stateToSave = { repoUrl, repoInfo, fileTree, panelWidths };
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-      } catch (e) { /* Unable to save state */ }
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [repoUrl, repoInfo, fileTree, panelWidths]);
 
   const isRepoLoaded = useMemo(() => !!repoInfo && fileTree.length > 0, [repoInfo, fileTree]);
 
@@ -167,6 +186,10 @@ const MainLayout: FC = () => {
 
     dispatch({ type: 'SET_PANEL_WIDTHS', payload: newWidths });
   }, [panelWidths, isTreeCollapsed]);
+  
+  const handleResetLayout = useCallback(() => {
+    dispatch({ type: 'RESET_PANEL_WIDTHS' });
+  }, []);
 
   const gridTemplateColumns = useMemo(() => {
     const splitterWidth = 8;
@@ -217,7 +240,7 @@ const MainLayout: FC = () => {
       <RepositoryProvider repoInfo={repoInfo} fileTree={fileTree} onError={handleError}>
         <Panel
           className="file-tree-panel"
-          title={<><FolderKanban size={14} /> {repoInfo ? `${repoInfo.repo}` : 'Repository Files'}</>}
+          title={<><FolderKanban size={14} /> {repoInfo ? `${repoInfo.repo}` : 'Repository'}</>}
           isCollapsed={isTreeCollapsed}
           onToggleCollapse={() => dispatch({ type: 'TOGGLE_TREE_COLLAPSE' })}
           collapseDirection="left"
@@ -233,11 +256,11 @@ const MainLayout: FC = () => {
           )}
         </Panel>
         <Splitter onResize={(delta) => handleResize(0, delta)} />
-        <ErrorBoundary name="File Viewer"><FileViewer onError={handleError} /></ErrorBoundary>
-        <Splitter onResize={(delta) => handleResize(1, delta)} />
         <ErrorBoundary name="Analysis Panel"><AnalysisPanel /></ErrorBoundary>
+        <Splitter onResize={(delta) => handleResize(1, delta)} />
+        <ErrorBoundary name="File Viewer"><FileViewer onError={handleError} /></ErrorBoundary>
       </RepositoryProvider>
-      <Footer />
+      <Footer onResetLayout={handleResetLayout} />
     </div>
   );
 };

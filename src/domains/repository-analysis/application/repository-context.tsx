@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect } from 'react';
+import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect, useMemo } from 'react';
 import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES } from '../domain';
 import { MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE } from '../../../../shared/config';
 
@@ -51,7 +51,7 @@ export type RepositoryAction =
   | { type: 'RESET_DISMISSED_FINDINGS' }
   | { type: 'RESET' };
 
-const initialState: RepositoryState = {
+const createInitialState = (): RepositoryState => ({
   repoInfo: null,
   fileTree: [],
   selectedFile: null,
@@ -65,29 +65,22 @@ const initialState: RepositoryState = {
   findingsMap: new Map(),
   dismissedFindings: new Set(),
   error: null,
-};
+});
 
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
   switch (action.type) {
     case 'RESET':
-      return {
-        ...initialState,
-        findingsMap: new Map(),
-        dismissedFindings: new Set(),
-      };
+      return createInitialState();
     case 'INITIALIZE_STATE':
       return {
-        ...initialState,
+        ...createInitialState(),
         repoInfo: action.payload.repoInfo,
         fileTree: action.payload.fileTree,
-        findingsMap: new Map(),
-        dismissedFindings: new Set(),
       };
     case 'SELECT_FILE_START':
       return {
         ...state,
         selectedFile: { path: action.payload.path, content: 'Loading...', isImage: action.payload.isImage, url: action.payload.url },
-        analysisConfig: { ...state.analysisConfig, scope: action.payload.isImage ? ANALYSIS_SCOPES.ALL : ANALYSIS_SCOPES.FILE },
         error: null,
         activeLineRange: null,
       };
@@ -178,7 +171,7 @@ interface RepositoryProviderProps {
 }
 
 export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repoInfo, fileTree, onError = () => { } }) => {
-  const [state, dispatch] = useReducer(repositoryReducer, initialState);
+  const [state, dispatch] = useReducer(repositoryReducer, undefined, createInitialState);
 
   useEffect(() => {
     if (repoInfo) {
@@ -215,7 +208,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       dispatch({ type: 'SELECT_FILE_ERROR', payload: message });
       onError(message);
     }
-  }, [state.fileContentCache, onError]);
+  }, [state.fileContentCache, onError, dispatch]);
 
   const selectFileByPath = useCallback((path: string): void => {
     const file = findFileInTree(path, state.fileTree);
@@ -226,8 +219,16 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     }
   }, [state.fileTree, handleFileClick, onError]);
 
+  const contextValue = useMemo(() => ({
+    state,
+    dispatch,
+    handleFileClick,
+    selectFileByPath,
+    onError,
+  }), [state, dispatch, handleFileClick, selectFileByPath, onError]);
+
   return (
-    <RepositoryContext.Provider value={{ state, dispatch, handleFileClick, selectFileByPath, onError }}>
+    <RepositoryContext.Provider value={contextValue}>
       {children}
     </RepositoryContext.Provider>
   );

@@ -88,7 +88,7 @@ export const AnalysisPanel: FC = () => {
 
   const dismissedCount = dismissedFindings.size;
 
-  const panelTitle = <><FlaskConical size={14} /> Analysis Engine</>;
+  const panelTitle = <><FlaskConical size={14} /> Analysis</>;
 
   const panelActions = (
     <>

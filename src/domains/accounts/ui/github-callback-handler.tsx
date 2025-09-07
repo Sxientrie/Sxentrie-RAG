@@ -1,50 +1,47 @@
 import React, { FC, useEffect } from 'react';
-import { useAuth } from '../application/auth-context';
 
 export const GitHubCallbackHandler: FC = () => {
-  const { dispatch } = useAuth();
-
   useEffect(() => {
     const handleAuthentication = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
 
-      if (code) {
-        try {
-          dispatch({ type: 'LOGIN_START' });
+      if (window.opener) {
+        if (code) {
+          try {
+            const response = await fetch('/api/auth/github', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code }),
+            });
 
-          const response = await fetch('/api/auth/github', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
-          });
+            const data = await response.json();
 
-          const data = await response.json();
+            if (!response.ok) {
+              throw new Error(data.error || 'Failed to authenticate.');
+            }
+            
+            window.opener.postMessage({ type: 'auth-success', user: data }, window.location.origin);
 
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to authenticate.');
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+            window.opener.postMessage({ type: 'auth-error', error: message }, window.location.origin);
           }
-
-          dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data } });
-          window.location.assign('/');
-
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-          dispatch({ type: 'LOGIN_ERROR', payload: { error: message } });
+        } else {
+          const error = params.get('error_description') || "Authentication failed: No code received from GitHub.";
+          window.opener.postMessage({ type: 'auth-error', error }, window.location.origin);
         }
-      } else {
-        const error = params.get('error_description') || "Authentication failed: No code received from GitHub.";
-        dispatch({ type: 'LOGIN_ERROR', payload: { error } });
+        window.close();
       }
     };
 
     handleAuthentication();
-  }, [dispatch]);
+  }, []);
 
   return (
     <div className="full-page-centered">
       <h2>Authenticating...</h2>
-      <p>Please wait while we securely log you in.</p>
+      <p>Please wait while we securely log you in. This window will close automatically.</p>
     </div>
   );
 };

@@ -71,10 +71,17 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
   }, []);
 
   const login = useCallback(() => {
-    authService.loginWithGitHub(); // This will open the popup
+    dispatch({ type: 'LOGIN_START' });
+    const popup = authService.loginWithGitHub();
+    
+    if (!popup) {
+      dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Failed to open login popup. Please disable any popup blockers and try again.' } });
+      return;
+    }
+
+    let timer: number;
 
     const handleAuthMessage = (event: MessageEvent) => {
-      // IMPORTANT: Check the origin of the message for security
       if (event.origin !== window.location.origin) {
         return;
       }
@@ -87,12 +94,24 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
         dispatch({ type: 'LOGIN_ERROR', payload: { error: error || 'Authentication failed in popup.' } });
       }
       
-      // Clean up the event listener once we have a result
+      clearInterval(timer);
       window.removeEventListener('message', handleAuthMessage);
     };
 
     window.addEventListener('message', handleAuthMessage);
-  }, [dispatch]);
+    
+    timer = window.setInterval(() => {
+      if (popup.closed) {
+        clearInterval(timer);
+        window.removeEventListener('message', handleAuthMessage);
+        // If login is still in progress, set it to error.
+        if (state.isLoading) {
+          dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Login cancelled.' }});
+        }
+      }
+    }, 500);
+
+  }, [dispatch, state.isLoading]);
 
   const logout = useCallback(async () => {
     try {

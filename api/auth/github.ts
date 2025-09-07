@@ -5,6 +5,24 @@ interface ServerlessRequest {
   json: () => Promise<{ code: string }>;
 }
 
+// Type definition for GitHub's token exchange response
+interface GitHubTokenResponse {
+  access_token: string;
+  scope: string;
+  token_type: string;
+  error?: string;
+  error_description?: string;
+}
+
+// Type definition for GitHub's user profile response
+interface GitHubUserResponse {
+  id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string;
+}
+
 export default async function handler(request: ServerlessRequest) {
   const { code } = await request.json();
 
@@ -35,7 +53,7 @@ export default async function handler(request: ServerlessRequest) {
       }),
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenData: GitHubTokenResponse = await tokenResponse.json();
     if (tokenData.error) {
       throw new Error(tokenData.error_description);
     }
@@ -48,10 +66,10 @@ export default async function handler(request: ServerlessRequest) {
       },
     });
 
-    const userData = await userResponse.json();
+    const userData: GitHubUserResponse = await userResponse.json();
 
     const userProfile = {
-      id: userData.id,
+      id: userData.id.toString(),
       name: userData.name || userData.login,
       email: userData.email,
       avatarUrl: userData.avatar_url,

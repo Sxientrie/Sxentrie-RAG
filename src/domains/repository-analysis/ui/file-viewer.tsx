@@ -84,7 +84,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
   };
   
   const panelTitle = (
-    <><FileCode2 size={14}/> {selectedFile ? selectedFile.path : 'File Content'}</>
+    <><FileCode2 size={14}/> {selectedFile ? selectedFile.path : 'Preview'}</>
   );
   
   const panelActions = selectedFile ? (
