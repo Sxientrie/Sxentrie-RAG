@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { GitHubFile, AnalysisConfig, GEMINI_MODEL_NAME, ANALYSIS_SCOPES, AnalysisResults } from '../constants';
-import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE } from "../config";
+import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults } from '../domain';
+import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE } from "../../../../shared/config";
+import { ThoughtStreamParser } from "./thought-stream-parser";
 
 const ALLOWED_EXTENSIONS = new Set(['js', 'ts', 'py', 'go', 'java', 'html', 'css', 'md', 'json', 'jsx', 'tsx', 'sh', 'yml', 'yaml', 'rb', 'php', 'c', 'cpp', 'cs', 'rs']);
 const SPECIFIC_FILENAMES = new Set(['dockerfile']);
@@ -15,14 +16,12 @@ const fetchFileContents = async (files: GitHubFile[]): Promise<string> => {
             try {
                 const res = await fetch(file.download_url!);
                 if (!res.ok) {
-                    console.warn(`--- Error fetching ${file.path}: ${res.statusText} ---`);
                     return '';
                 }
                 const text = await res.text();
                 const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + "\n... (file truncated)" : text;
                 return `--- File: ${file.path} ---\n${cappedText}`;
             } catch (e) {
-                console.error(`--- Error fetching ${file.path}: ${(e as Error).message} ---`);
                 return '';
             }
         })
@@ -118,7 +117,7 @@ ${fileContentsString}
 `;
 
     const reviewFocus = config.customRules
-      ? `You MUST follow these specific user-provided instructions: "${config.customRules}".`
+      ? `In addition to your standard analysis, the user has provided the following directives to guide your review: "${config.customRules}". Please prioritize these areas where applicable.`
       : 'Your focus is on providing a comprehensive, high-quality code review. Identify potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, readability, and adherence to best practices. Be as thorough and insightful as possible.';
 
     const reviewPrompt = `
@@ -167,31 +166,93 @@ ${fileContentsString}
             required: ["fileName", "finding", "explanation"],
         },
     };
+    
+    const baseModelConfig = {
+        temperature: 0.5,
+        thinkingConfig: {
+            thinkingBudget: -1,
+            includeThoughts: true,
+        }
+    };
 
-    onProgress('Requesting analysis from Gemini...');
-    const overviewPromise = ai.models.generateContent({
-        model: GEMINI_MODEL_NAME,
+    onProgress('Phase 1/2: Generating Project Overview...');
+    const overviewParser = new ThoughtStreamParser();
+    onProgress(overviewParser.getLatestSummary());
+    
+    const overviewStream = await ai.models.generateContentStream({
+        model: config.model,
         contents: overviewPrompt,
-        config: { temperature: 0.5 },
+        config: baseModelConfig,
     });
 
-    const reviewPromise = ai.models.generateContent({
-        model: GEMINI_MODEL_NAME,
+    let overviewText = '';
+    for await (const chunk of overviewStream) {
+        let hasNewThought = false;
+        if (chunk.candidates?.[0]?.content?.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+                if (part.thought && part.text) {
+                    overviewParser.addChunk(part.text);
+                    hasNewThought = true;
+                } else if (part.text) {
+                    overviewText += part.text;
+                }
+            }
+        } else {
+             overviewText += chunk.text;
+        }
+
+        if (hasNewThought) {
+            onProgress(overviewParser.getLatestSummary());
+        }
+    }
+    
+    onProgress('Phase 2/2: Performing Technical Review...');
+    const reviewParser = new ThoughtStreamParser();
+    onProgress(reviewParser.getLatestSummary());
+    
+    const reviewStream = await ai.models.generateContentStream({
+        model: config.model,
         contents: reviewPrompt,
         config: {
+            ...baseModelConfig,
+            temperature: 0.2,
             responseMimeType: "application/json",
             responseSchema: reviewSchema,
-            temperature: 0.2
         }
     });
 
-    const [overviewResponse, reviewResponse] = await Promise.all([overviewPromise, reviewPromise]);
+    let reviewText = '';
+    for await (const chunk of reviewStream) {
+        let hasNewThought = false;
+        if (chunk.candidates?.[0]?.content?.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+                if (part.thought && part.text) {
+                    reviewParser.addChunk(part.text);
+                    hasNewThought = true;
+                } else if (part.text) {
+                    reviewText += part.text;
+                }
+            }
+        } else {
+            reviewText += chunk.text;
+        }
+
+        if (hasNewThought) {
+            onProgress(reviewParser.getLatestSummary());
+        }
+    }
 
     onProgress('Processing AI response');
-    const reviewJson = JSON.parse(reviewResponse.text.trim());
+    
+    let reviewJson;
+    try {
+        reviewJson = JSON.parse(reviewText.trim());
+    } catch (error) {
+        throw new Error('Analysis failed: The AI response was not in the expected JSON format.');
+    }
 
     return {
-        overview: overviewResponse.text,
+        overview: overviewText,
         review: reviewJson,
     };
 };

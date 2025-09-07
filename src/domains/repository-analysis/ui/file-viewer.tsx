@@ -1,9 +1,10 @@
 import React, { FC, useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { coldarkDark } from 'react-syntax-highlighter/dist/esm/styles/prism/';
-import { Panel } from './panel';
+import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical } from 'lucide-react';
-import { getLanguage } from '../utils/get-language';
+import { getLanguage } from '../../../../shared/lib/get-language';
+import { useRepository } from '../application/repository-context';
 
 const customStyle = {
     ...coldarkDark,
@@ -22,37 +23,37 @@ const customStyle = {
 };
 
 interface FileViewerProps {
-  file: { path: string; content: string; url?: string; isImage?: boolean } | null;
-  isRepoLoaded: boolean;
+  onError: (message: string) => void;
 }
 
-export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
+export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
+  const { state: { selectedFile, repoInfo } } = useRepository();
   const [isCopied, setIsCopied] = useState(false);
+  const isRepoLoaded = !!repoInfo;
 
   const handleCopy = (): void => {
-    if (!file || file.isImage) return;
-    navigator.clipboard.writeText(file.content).then(() => {
+    if (!selectedFile || selectedFile.isImage) return;
+    navigator.clipboard.writeText(selectedFile.content).then(() => {
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
     }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        alert('Failed to copy file content to clipboard. Please try again.');
+        onError('Failed to copy file content to clipboard.');
     });
   };
 
   const handleDownload = async (): Promise<void> => {
-      if (!file) return;
+      if (!selectedFile) return;
       
-      const fileName = file.path.split('/').pop() || 'download';
+      const fileName = selectedFile.path.split('/').pop() || 'download';
       let blob;
       
       try {
-        if (file.isImage && file.url) {
-            const response = await fetch(file.url);
+        if (selectedFile.isImage && selectedFile.url) {
+            const response = await fetch(selectedFile.url);
             if (!response.ok) throw new Error('Network response was not ok');
             blob = await response.blob();
         } else {
-            blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
+            blob = new Blob([selectedFile.content], { type: 'text/plain;charset=utf-8' });
         }
 
         if (blob) {
@@ -65,23 +66,22 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
             window.URL.revokeObjectURL(link.href);
         }
       } catch (error) {
-          console.error('Failed to download file:', error);
-          alert('Failed to download file. Please check the console for more details.');
+          onError('Failed to download file. An unexpected error occurred.');
       }
   };
   
   const panelTitle = (
-    <><FileCode2 size={14}/> {file ? file.path : 'File Content'}</>
+    <><FileCode2 size={14}/> {selectedFile ? selectedFile.path : 'File Content'}</>
   );
   
-  const panelActions = file ? (
+  const panelActions = selectedFile ? (
       <div className="file-actions">
           <button
               className="file-action-btn"
               onClick={handleCopy}
-              title={file.isImage ? "Cannot copy an image" : (isCopied ? "Copied!" : "Copy to clipboard")}
+              title={selectedFile.isImage ? "Cannot copy an image" : (isCopied ? "Copied!" : "Copy to clipboard")}
               aria-label="Copy file content to clipboard"
-              disabled={isCopied || file.isImage}
+              disabled={isCopied || selectedFile.isImage}
           >
               {isCopied ? <Check size={14} color="var(--primary)" /> : <ClipboardCopy size={14} />}
           </button>
@@ -133,20 +133,20 @@ export const FileViewer: FC<FileViewerProps> = ({ file, isRepoLoaded }) => {
         title={panelTitle}
         actions={panelActions}
     >
-      {file ? (
-        file.isImage && file.url ? (
+      {selectedFile ? (
+        selectedFile.isImage && selectedFile.url ? (
             <div className="image-viewer-container">
-              <img src={file.url} alt={file.path} className="image-preview" />
+              <img src={selectedFile.url} alt={selectedFile.path} className="image-preview" />
             </div>
         ) : (
             <SyntaxHighlighter
-              language={getLanguage(file.path)}
+              language={getLanguage(selectedFile.path)}
               style={customStyle}
               showLineNumbers
               wrapLines
               customStyle={{ height: '100%', overflow: 'auto', margin: 0, borderRadius: 'var(--radius)', backgroundColor: 'var(--background)' }}
             >
-              {file.content}
+              {selectedFile.content}
             </SyntaxHighlighter>
         )
       ) : (

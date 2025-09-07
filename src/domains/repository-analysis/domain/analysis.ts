@@ -1,19 +1,10 @@
-export interface GitHubFile {
-  name: string;
-  path: string;
-  type: 'file' | 'dir';
-  download_url: string | null;
-  content?: GitHubFile[];
-}
-
-export interface RepoInfo {
-  owner: string;
-  repo: string;
-}
-
 export enum ANALYSIS_SCOPES {
     ALL = 'all',
     FILE = 'file',
+}
+
+export enum GEMINI_MODELS {
+    PRO = 'gemini-2.5-flash',
 }
 
 export enum ANALYSIS_TABS {
@@ -24,6 +15,7 @@ export enum ANALYSIS_TABS {
 export interface AnalysisConfig {
   customRules: string;
   scope: ANALYSIS_SCOPES;
+  model: GEMINI_MODELS;
 }
 
 export interface ExplanationStep {
@@ -47,5 +39,3 @@ export interface CodeMetric {
   linesOfCode: number;
   cyclomaticComplexity: number;
 }
-
-export const GEMINI_MODEL_NAME = 'gemini-2.5-flash';

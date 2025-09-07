@@ -1,5 +1,6 @@
-import { GitHubFile, RepoInfo } from '../constants';
-import { ApiError } from '../errors/api-error';
+import { GitHubFile, RepoInfo } from '../domain';
+// Using relative path to avoid browser resolution errors.
+import { ApiError } from '../../../../shared/errors/api-error';
 
 interface GitHubTreeItem {
     path: string;
@@ -45,11 +46,7 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
         if (response.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait and try again.');
         throw new ApiError(`GitHub API Error: ${response.statusText}`);
     }
-    const { tree, truncated } = await response.json();
-
-    if (truncated) {
-        console.warn('File tree is truncated. Some files may not be displayed.');
-    }
+    const { tree } = await response.json();
     
     const buildFileTree = (files: GitHubTreeItem[]): GitHubFile[] => {
         const root: { [key: string]: FileTreeNode } = {};

@@ -14,11 +14,6 @@ interface State {
 function reportErrorToService(error: Error, errorInfo: React.ErrorInfo) {
     // In a real application, this would send the error to a monitoring service
     // like Sentry, Bugsnag, Datadog, etc.
-    console.log("Reporting error to service:", {
-        error: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack
-    });
 }
 
 export class ErrorBoundary extends Component<Props, State> {

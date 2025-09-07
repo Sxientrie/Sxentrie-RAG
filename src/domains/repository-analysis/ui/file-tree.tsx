@@ -1,5 +1,5 @@
-import React, { FC, useState } from "react";
-import { GitHubFile } from "../constants";
+import React, { FC, useState, useEffect, useMemo } from "react";
+import { GitHubFile } from "../domain";
 import {
     File,
     Folder,
@@ -15,6 +15,9 @@ import {
     FileCode,
     FileType
 } from 'lucide-react';
+import { useRepository } from "../application/repository-context";
+import { FolderKanban, Search, X } from 'lucide-react';
+import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
 
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -76,7 +79,7 @@ interface TreeItemProps {
 
 const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs, onToggle, searchTerm }) => {
     const isDir = item.type === 'dir';
-    const isOpen = searchTerm.trim() ? true : openDirs.has(item.path);
+    const isOpen = !!searchTerm.trim() || openDirs.has(item.path);
 
     const handleItemClick = () => {
         if (isDir) {
@@ -100,7 +103,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 <span>{item.name}</span>
             </div>
             {isDir && isOpen && item.content && (
-                <div style={{ paddingLeft: '20px' }}>
+                <div className="tree-indentation">
                   {item.content.map(child => (
                       <TreeItem 
                         key={child.path} 
@@ -118,14 +121,52 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
     );
 };
 
+const filterFileTree = (nodes: GitHubFile[], term: string): GitHubFile[] => {
+    if (!term.trim()) return nodes;
+    const lowerCaseTerm = term.toLowerCase().trim();
+    return nodes.reduce<GitHubFile[]>((acc, node) => {
+        if (node.type === 'dir') {
+            const children = filterFileTree(node.content || [], term);
+            if (node.name.toLowerCase().includes(lowerCaseTerm) || children.length > 0) {
+                acc.push({ ...node, content: children });
+            }
+        } else if (node.name.toLowerCase().includes(lowerCaseTerm)) {
+            acc.push(node);
+        }
+        return acc;
+    }, []);
+};
 
-export const FileTree: FC<{ 
-    files: GitHubFile[]; 
-    onFileClick: (file: GitHubFile) => void; 
-    selectedPath: string | null;
-    searchTerm: string;
-}> = ({ files, onFileClick, selectedPath, searchTerm }) => {
+
+export const FileTree: FC = () => {
+  const { state, dispatch, handleFileClick } = useRepository();
+  const { fileTree, selectedFile, searchTerm } = state;
   const [openDirs, setOpenDirs] = useState<Set<string>>(new Set());
+  
+  const filteredFileTree = useMemo(() => filterFileTree(fileTree, searchTerm), [fileTree, searchTerm]);
+  const selectedPath = selectedFile?.path ?? null;
+
+  useEffect(() => {
+    if (selectedPath) {
+        const pathParts = selectedPath.split('/');
+        const parentPaths = pathParts.slice(0, -1).map((_, index) => {
+            return pathParts.slice(0, index + 1).join('/');
+        });
+        
+        setOpenDirs(prev => {
+            const newDirs = new Set(prev);
+            parentPaths.forEach(p => newDirs.add(p));
+            return newDirs;
+        });
+        
+        setTimeout(() => {
+            const selectedElement = document.querySelector(`.tree-item.selected`);
+            if (selectedElement) {
+                selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 100);
+    }
+  }, [selectedPath]);
 
   const handleToggle = (path: string) => {
       setOpenDirs(prevOpenDirs => {
@@ -140,18 +181,46 @@ export const FileTree: FC<{
   };
 
   return (
-      <ul className="file-tree">
-        {files.map(file => (
-            <TreeItem 
-                key={file.path} 
-                item={file} 
-                onFileClick={onFileClick} 
-                selectedPath={selectedPath}
-                openDirs={openDirs}
-                onToggle={handleToggle}
-                searchTerm={searchTerm}
-            />
-        ))}
-      </ul>
+    <>
+      <div className="file-search-input-wrapper">
+          <Search size={12} />
+          <input
+              type="text"
+              className="file-search-input"
+              placeholder="Search files and folders..."
+              value={searchTerm}
+              onChange={(e) => dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value })}
+              disabled={fileTree.length === 0}
+              aria-label="Search files in repository"
+          />
+          {searchTerm && (
+              <button
+                  className="file-search-clear-btn"
+                  onClick={() => dispatch({ type: 'SET_SEARCH_TERM', payload: '' })}
+                  aria-label="Clear search term"
+              >
+                  <X size={14} />
+              </button>
+          )}
+      </div>
+      {fileTree.length > 0 && (
+          <ErrorBoundary name="File Tree">
+              <ul className="file-tree">
+                {filteredFileTree.map(file => (
+                    <TreeItem 
+                        key={file.path} 
+                        item={file} 
+                        onFileClick={handleFileClick} 
+                        selectedPath={selectedPath}
+                        openDirs={openDirs}
+                        onToggle={handleToggle}
+                        searchTerm={searchTerm}
+                    />
+                ))}
+              </ul>
+              {searchTerm && filteredFileTree.length === 0 && (<div className="placeholder">No files found matching "{searchTerm}".</div>)}
+          </ErrorBoundary>
+      )}
+    </>
   );
 };

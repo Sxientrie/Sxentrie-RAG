@@ -1,19 +1,30 @@
 import React, { FC, useState, useEffect } from 'react';
-import { Panel } from './panel';
-import { AnalysisConfig, AnalysisResults, TechnicalReviewFinding, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_TABS } from '../constants';
+import { Panel } from '../../../../shared/ui/panel';
+import { AnalysisConfig, AnalysisResults, TechnicalReviewFinding, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_TABS, GEMINI_MODELS } from '../domain';
 import { FlaskConical, ChevronUp, ChevronDown, FileCheck2, Download, TestTubeDiagonal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { coldarkDark } from 'react-syntax-highlighter/dist/esm/styles/prism/';
-import { getLanguage } from '../utils/get-language';
+import { getLanguage } from '../../../../shared/lib/get-language';
+import { useRepository } from '../application/repository-context';
+import { useAnalysisRunner } from '../application/use-analysis-runner';
 
-const Finding: FC<{finding: TechnicalReviewFinding}> = ({ finding }) => {
+interface FindingProps {
+    finding: TechnicalReviewFinding;
+    onFileSelect: (path: string) => void;
+}
+
+const Finding: FC<FindingProps> = ({ finding, onFileSelect }) => {
     const language = getLanguage(finding.fileName);
 
     return (
         <div className="review-finding">
-            <div className="review-finding-header">{finding.fileName}</div>
+            <div className="review-finding-header">
+                <button className="clickable-filepath" onClick={() => onFileSelect(finding.fileName)}>
+                    {finding.fileName}
+                </button>
+            </div>
             <div className="review-finding-body markdown-content">
                 <h4>{finding.finding}</h4>
                 {finding.explanation.map((step, index) => {
@@ -40,31 +51,27 @@ const Finding: FC<{finding: TechnicalReviewFinding}> = ({ finding }) => {
     );
 };
 
-interface AnalysisPanelProps {
-    results: AnalysisResults | null;
-    config: AnalysisConfig;
-    setConfig: (config: Partial<AnalysisConfig>) => void;
-    isLoading: boolean;
-    loadingMessage?: string;
-    error: string | null;
-    onRunAnalysis: () => void;
-    isRepoLoaded: boolean;
-    selectedFile: { path: string; content: string; url?: string; isImage?: boolean } | null;
-    repoInfo: RepoInfo | null;
-}
+export const AnalysisPanel: FC = () => {
+    const { 
+        state: { selectedFile, repoInfo, analysisResults, analysisConfig, isAnalysisLoading, analysisProgressMessage, error }, 
+        dispatch, 
+        selectFileByPath 
+    } = useRepository();
+    const { runAnalysis } = useAnalysisRunner();
 
-export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConfig, isLoading, loadingMessage, error, onRunAnalysis, isRepoLoaded, selectedFile, repoInfo }) => {
     const [activeTab, setActiveTab] = useState<ANALYSIS_TABS>(ANALYSIS_TABS.OVERVIEW);
     const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
     
+    const isRepoLoaded = !!repoInfo;
+
     useEffect(() => {
-        if(results) {
+        if(analysisResults) {
             setActiveTab(ANALYSIS_TABS.OVERVIEW);
         }
-    }, [results]);
+    }, [analysisResults]);
 
     const handleDownloadReport = (): void => {
-        if (!results || !repoInfo) return;
+        if (!analysisResults || !repoInfo) return;
 
         const reportDate = new Date().toUTCString();
         const reportParts: string[] = [];
@@ -74,25 +81,25 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
         reportParts.push(`**Report Generated:** ${reportDate}\n\n`);
         reportParts.push(`## Analysis Configuration\n\n`);
 
-        if (config.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
+        if (analysisConfig.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
             reportParts.push(`*   **Scope:** Selected File (\`${selectedFile.path}\`)\n`);
         } else {
             reportParts.push(`*   **Scope:** Entire Repository\n`);
         }
-        if (config.customRules) {
-            reportParts.push(`*   **Custom Directives:** \n\`\`\`\n${config.customRules}\n\`\`\`\n`);
+        if (analysisConfig.customRules) {
+            reportParts.push(`*   **Custom Directives:** \n\`\`\`\n${analysisConfig.customRules}\n\`\`\`\n`);
         } else {
             reportParts.push(`*   **Custom Directives:** None\n`);
         }
         reportParts.push(`\n---\n\n`);
 
-        reportParts.push(`## Project Overview\n\n${results.overview}\n\n---\n\n`);
+        reportParts.push(`## Project Overview\n\n${analysisResults.overview}\n\n---\n\n`);
         
         reportParts.push(`## Technical Review\n\n`);
-        if (results.review.length === 0) {
+        if (analysisResults.review.length === 0) {
             reportParts.push(`No specific technical issues were found based on the provided criteria.\n`);
         } else {
-            results.review.forEach((finding, index) => {
+            analysisResults.review.forEach((finding, index) => {
                 reportParts.push(`### ${index + 1}. ${finding.finding}\n\n`);
                 reportParts.push(`**File:** \`${finding.fileName}\`\n\n`);
                 finding.explanation.forEach(step => {
@@ -119,6 +126,8 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
         URL.revokeObjectURL(url);
     };
 
+    const setConfig = (cfg: Partial<AnalysisConfig>) => dispatch({ type: 'SET_ANALYSIS_CONFIG', payload: cfg });
+
     const isFileAnalysisDisabled = !selectedFile || selectedFile.isImage === true;
     const ConfigCollapseIcon = isConfigCollapsed ? ChevronDown : ChevronUp;
 
@@ -126,11 +135,11 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
 
     const panelActions = (
         <>
-            {results && (
+            {analysisResults && (
                  <button 
                     className="panel-action-btn" 
                     onClick={handleDownloadReport}
-                    disabled={!results || !repoInfo}
+                    disabled={!analysisResults || !repoInfo}
                     title="Download analysis as Markdown file"
                     aria-label="Download analysis report"
                 >
@@ -159,65 +168,67 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
             <div className={`analysis-config-wrapper ${isConfigCollapsed ? 'collapsed' : ''}`}>
                 <div className="analysis-config">
                     <div className="custom-rules">
-                        <h4>Custom Directives</h4>
                         <textarea 
                             placeholder='Guide the analysis engine with specific instructions, e.g., "Focus on security vulnerabilities" or "Ignore styling issues and check for performance bottlenecks."'
-                            value={config.customRules}
+                            value={analysisConfig.customRules}
                             onChange={(e) => setConfig({ customRules: e.target.value})}
-                            disabled={isLoading}
+                            disabled={isAnalysisLoading}
                         />
                     </div>
                     <div className="analysis-actions">
-                        <div className="analysis-scope">
-                            <div className="analysis-scope-radios">
-                                <label htmlFor="scope-all">
-                                    <input
-                                        type="radio"
-                                        id="scope-all"
-                                        name="scope"
-                                        value={ANALYSIS_SCOPES.ALL}
-                                        checked={config.scope === ANALYSIS_SCOPES.ALL}
-                                        onChange={() => setConfig({ scope: ANALYSIS_SCOPES.ALL })}
-                                        disabled={isLoading}
-                                    />
-                                    <span className="custom-radio"></span>
-                                    <span>Entire Repo</span>
-                                </label>
-                                <label htmlFor="scope-file" title={isFileAnalysisDisabled ? 'Select a text file to enable this option' : ''}>
+                         <div className="radio-group">
+                            <label htmlFor="scope-all">
                                 <input
-                                        type="radio"
-                                        id="scope-file"
-                                        name="scope"
-                                        value={ANALYSIS_SCOPES.FILE}
-                                        checked={config.scope === ANALYSIS_SCOPES.FILE}
-                                        onChange={() => setConfig({ scope: ANALYSIS_SCOPES.FILE })}
-                                        disabled={isLoading || isFileAnalysisDisabled}
-                                    />
-                                    <span className="custom-radio"></span>
-                                    <span>Selected File</span>
-                                </label>
-                            </div>
+                                    type="radio"
+                                    id="scope-all"
+                                    name="scope"
+                                    value={ANALYSIS_SCOPES.ALL}
+                                    checked={analysisConfig.scope === ANALYSIS_SCOPES.ALL}
+                                    onChange={() => setConfig({ scope: ANALYSIS_SCOPES.ALL })}
+                                    disabled={isAnalysisLoading}
+                                />
+                                <span className="custom-radio"></span>
+                                <div className="radio-label-content">
+                                    <span className="radio-label-title">Entire Repo</span>
+                                </div>
+                            </label>
+                            <label htmlFor="scope-file" title={isFileAnalysisDisabled ? 'Select a text file to enable this option' : ''}>
+                            <input
+                                    type="radio"
+                                    id="scope-file"
+                                    name="scope"
+                                    value={ANALYSIS_SCOPES.FILE}
+                                    checked={analysisConfig.scope === ANALYSIS_SCOPES.FILE}
+                                    onChange={() => setConfig({ scope: ANALYSIS_SCOPES.FILE })}
+                                    disabled={isAnalysisLoading || isFileAnalysisDisabled}
+                                />
+                                <span className="custom-radio"></span>
+                                <div className="radio-label-content">
+                                    <span className="radio-label-title">Selected File</span>
+                                </div>
+                            </label>
                         </div>
                         <button 
                             className="run-analysis-btn" 
-                            onClick={onRunAnalysis} 
-                            disabled={isLoading || !isRepoLoaded}
+                            onClick={runAnalysis} 
+                            disabled={isAnalysisLoading || !isRepoLoaded}
                         >
-                            {isLoading ? "Analyzing..." : "Run Analysis"}
+                            {isAnalysisLoading ? "Analyzing..." : "Run Analysis"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {isLoading && (
-                <div className="placeholder">
-                    <div className="loading-spinner"></div>
-                    {loadingMessage || "Analyzing codebase... This may take a moment."}
+            {isAnalysisLoading && (
+                 <div className="thinking-progress">
+                    <p key={analysisProgressMessage} className="thinking-text">
+                        {analysisProgressMessage || "Initializing analysis..."}
+                    </p>
                 </div>
             )}
-            {error && !isLoading && <div className="error-message">{error}</div>}
+            {error && !isAnalysisLoading && <div className="error-message">{error}</div>}
 
-            {!isLoading && !results && !error && (
+            {!isAnalysisLoading && !analysisResults && !error && (
                  <div className="placeholder placeholder-top">
                     {isRepoLoaded ? (
                         <>
@@ -233,23 +244,23 @@ export const AnalysisPanel: FC<AnalysisPanelProps> = ({ results, config, setConf
                 </div>
             )}
 
-            {results && !isLoading && (
+            {analysisResults && !isAnalysisLoading && (
                 <div className="analysis-results">
                     <div className="tabs">
                         <div className="tabs-nav">
                             <button className={`tab-btn ${activeTab === ANALYSIS_TABS.OVERVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.OVERVIEW)}>Project Overview</button>
-                            <button className={`tab-btn ${activeTab === ANALYSIS_TABS.REVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.REVIEW)}>Technical Review ({results.review.length})</button>
+                            <button className={`tab-btn ${activeTab === ANALYSIS_TABS.REVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.REVIEW)}>Technical Review ({analysisResults.review.length})</button>
                         </div>
                     </div>
                     {activeTab === ANALYSIS_TABS.OVERVIEW && (
                         <div className="tab-content markdown-content" aria-live="polite">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{results.overview}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResults.overview}</ReactMarkdown>
                         </div>
                     )}
                     {activeTab === ANALYSIS_TABS.REVIEW && (
                         <div className="tab-content" aria-live="polite">
-                            {results.review.length > 0 ? results.review.map((finding, i) => (
-                                <Finding key={i} finding={finding} />
+                            {analysisResults.review.length > 0 ? analysisResults.review.map((finding, i) => (
+                                <Finding key={`${finding.fileName}-${i}`} finding={finding} onFileSelect={selectFileByPath} />
                             )) : (
                                 <div className="placeholder">
                                     <FileCheck2 size={48} strokeWidth={1} />
