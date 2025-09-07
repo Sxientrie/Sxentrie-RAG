@@ -16,7 +16,7 @@ const loginWithGitHub = (): Window | null => {
 };
 
 const logout = async (): Promise<void> => {
-  return Promise.resolve();
+  await fetch('/api/auth/logout', { method: 'POST' });
 };
 
 export const authService = {

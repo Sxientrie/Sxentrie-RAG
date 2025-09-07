@@ -16,7 +16,7 @@ import {
     FileType
 } from 'lucide-react';
 import { useRepository } from "../application/repository-context";
-import { FolderKanban, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
 
 const getFileIcon = (fileName: string): JSX.Element => {

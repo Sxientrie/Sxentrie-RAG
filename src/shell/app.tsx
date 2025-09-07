@@ -76,57 +76,30 @@ const getInitialState = (): AppState => {
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
-  const nextState = ((): AppState => {
-    switch (action.type) {
-      case 'SET_REPO_URL':
-        return { ...state, repoUrl: action.payload };
-      case 'LOAD_REPO_START':
-        return { ...state, isLoading: true, loadingMessage: 'Parsing URL...', error: null, fileTree: [], repoInfo: null };
-      case 'LOAD_REPO_SUCCESS':
-        return { ...state, isLoading: false, loadingMessage: '', repoInfo: action.payload.repoInfo, fileTree: action.payload.tree };
-      case 'LOAD_REPO_ERROR':
-        return { ...state, isLoading: false, loadingMessage: '', error: action.payload };
-      case 'TOGGLE_TREE_COLLAPSE':
-        return { ...state, isTreeCollapsed: !state.isTreeCollapsed };
-      case 'RESET_STATE':
-        return { ...initialState };
-      case 'CLEAR_LOCAL_STORAGE_ERROR':
-        return { ...state, localStorageError: null };
-      case 'SET_TRANSIENT_ERROR':
-        return { ...state, transientError: action.payload };
-      case 'SET_PANEL_WIDTHS':
-        return { ...state, panelWidths: action.payload };
-      case 'RESET_PANEL_WIDTHS':
-        return { ...state, panelWidths: initialState.panelWidths };
-      default:
-        return state;
-    }
-  })();
-
-  try {
-    switch (action.type) {
-      case 'SET_REPO_URL':
-      case 'LOAD_REPO_SUCCESS':
-      case 'SET_PANEL_WIDTHS':
-      case 'RESET_PANEL_WIDTHS': {
-        const stateToSave = {
-          repoUrl: nextState.repoUrl,
-          repoInfo: nextState.repoInfo,
-          fileTree: nextState.fileTree,
-          panelWidths: nextState.panelWidths,
-        };
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-        break;
-      }
-      case 'RESET_STATE':
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        break;
-    }
-  } catch (e) {
-    // Unable to save state, but don't crash the app.
+  switch (action.type) {
+    case 'SET_REPO_URL':
+      return { ...state, repoUrl: action.payload };
+    case 'LOAD_REPO_START':
+      return { ...state, isLoading: true, loadingMessage: 'Parsing URL...', error: null, fileTree: [], repoInfo: null };
+    case 'LOAD_REPO_SUCCESS':
+      return { ...state, isLoading: false, loadingMessage: '', repoInfo: action.payload.repoInfo, fileTree: action.payload.tree };
+    case 'LOAD_REPO_ERROR':
+      return { ...state, isLoading: false, loadingMessage: '', error: action.payload };
+    case 'TOGGLE_TREE_COLLAPSE':
+      return { ...state, isTreeCollapsed: !state.isTreeCollapsed };
+    case 'RESET_STATE':
+      return { ...initialState };
+    case 'CLEAR_LOCAL_STORAGE_ERROR':
+      return { ...state, localStorageError: null };
+    case 'SET_TRANSIENT_ERROR':
+      return { ...state, transientError: action.payload };
+    case 'SET_PANEL_WIDTHS':
+      return { ...state, panelWidths: action.payload };
+    case 'RESET_PANEL_WIDTHS':
+      return { ...state, panelWidths: initialState.panelWidths };
+    default:
+      return state;
   }
-
-  return nextState;
 };
 
 const MainLayout: FC = () => {
@@ -135,6 +108,26 @@ const MainLayout: FC = () => {
     repoUrl, repoInfo, fileTree, isLoading, loadingMessage, error,
     isTreeCollapsed, localStorageError, transientError, panelWidths
   } = state;
+
+  useEffect(() => {
+    try {
+      // On state reset, clear the localStorage item
+      if (repoUrl === '' && repoInfo === null && fileTree.length === 0) {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+      } else { // Otherwise, save the relevant state
+        const stateToSave = {
+          repoUrl,
+          repoInfo,
+          fileTree,
+          panelWidths,
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
+      }
+    } catch (e) {
+      // Unable to save state, but don't crash the app.
+    }
+  }, [repoUrl, repoInfo, fileTree, panelWidths]);
+
 
   const mainAppRef = useRef<HTMLDivElement>(null);
 
@@ -234,7 +227,6 @@ const MainLayout: FC = () => {
           onReset={() => dispatch({ type: 'RESET_STATE' })}
           isRepoLoading={isLoading}
           isRepoLoaded={isRepoLoaded}
-          loadingMessage={loadingMessage}
         />
       </PageHeader>
       <RepositoryProvider repoInfo={repoInfo} fileTree={fileTree} onError={handleError}>

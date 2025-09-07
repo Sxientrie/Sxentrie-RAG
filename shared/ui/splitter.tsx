@@ -9,7 +9,7 @@ export const Splitter: FC<SplitterProps> = ({ onResize }) => {
 
   useEffect(() => {
     onResizeRef.current = onResize;
-  });
+  }, [onResize]);
 
   const handleMouseDown = useCallback((downEvent: React.MouseEvent<HTMLDivElement>) => {
     downEvent.preventDefault();

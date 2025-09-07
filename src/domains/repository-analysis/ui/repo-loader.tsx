@@ -8,7 +8,6 @@ interface RepoLoaderProps {
   onReset: () => void;
   isRepoLoading: boolean;
   isRepoLoaded: boolean;
-  loadingMessage: string;
 }
 
 export const RepoLoader: FC<RepoLoaderProps> = ({
@@ -18,7 +17,6 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
   onReset,
   isRepoLoading,
   isRepoLoaded,
-  loadingMessage,
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

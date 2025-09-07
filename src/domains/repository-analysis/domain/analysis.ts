@@ -42,9 +42,3 @@ export interface AnalysisResults {
   overview: string;
   review: TechnicalReviewFinding[];
 }
-
-export interface CodeMetric {
-  fileName: string;
-  linesOfCode: number;
-  cyclomaticComplexity: number;
-}

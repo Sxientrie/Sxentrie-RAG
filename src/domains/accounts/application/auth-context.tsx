@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, ReactNode, FC, useCallback, useEffect } from 'react';
+import React, { createContext, useReducer, useContext, ReactNode, FC, useCallback, useEffect, useRef } from 'react';
 import { AuthSession, User } from '../domain/user';
 import { authService } from '../infrastructure/auth-service';
 import { AppLoader } from '../../../shared/ui/app-loader';
@@ -53,6 +53,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   
+  const isLoadingRef = useRef(state.isLoading);
+  useEffect(() => {
+    isLoadingRef.current = state.isLoading;
+  }, [state.isLoading]);
+
   useEffect(() => {
     const checkSession = async () => {
         try {
@@ -105,17 +110,17 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
         clearInterval(timer);
         window.removeEventListener('message', handleAuthMessage);
         // If login is still in progress, set it to error.
-        if (state.isLoading) {
+        if (isLoadingRef.current) {
           dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Login cancelled.' }});
         }
       }
     }, 500);
 
-  }, [dispatch, state.isLoading]);
+  }, [dispatch]);
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await authService.logout();
     } catch (error) {
       // Failed to clear session on server, but we will still log out on the client.
     } finally {
