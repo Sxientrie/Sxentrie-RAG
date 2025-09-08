@@ -240,6 +240,7 @@ type RepositoryContextType = {
   handleFileClick: (file: GitHubFile) => Promise<void>;
   selectFileByPath: (path: string) => void;
   onError: (message: string) => void;
+  openSettingsPanel?: () => void;
 };
 
 const RepositoryContext = createContext<RepositoryContextType | undefined>(undefined);
@@ -249,9 +250,10 @@ interface RepositoryProviderProps {
   repoInfo: RepoInfo | null;
   fileTree: GitHubFile[];
   onError?: (message: string) => void;
+  openSettingsPanel?: () => void;
 }
 
-export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repoInfo, fileTree, onError = () => { } }) => {
+export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repoInfo, fileTree, onError = () => { }, openSettingsPanel }) => {
   const [state, dispatch] = useReducer(repositoryReducer, undefined, createInitialState);
 
   useEffect(() => {
@@ -306,7 +308,8 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     handleFileClick,
     selectFileByPath,
     onError,
-  }), [state, dispatch, handleFileClick, selectFileByPath, onError]);
+    openSettingsPanel,
+  }), [state, dispatch, handleFileClick, selectFileByPath, onError, openSettingsPanel]);
 
   return (
     <RepositoryContext.Provider value={contextValue}>

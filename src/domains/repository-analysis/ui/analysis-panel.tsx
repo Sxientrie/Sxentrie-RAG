@@ -38,12 +38,16 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MAX_GEMINI_FILE_COUNT, MARKDOWN_FILE_EXTENSION, REPORT_FILE_MIMETYPE } from '../../../../shared/config';
 import { collectAllFiles } from '../application/file-tree-utils';
+import { ApiKeyError } from '../../../../shared/errors/api-key-error';
+
+const isApiKeyError = (msg: string | null): boolean => !!msg && msg.startsWith('Gemini API key not found');
 
 export const AnalysisPanel: FC = () => {
   const {
     state: { selectedFile, repoInfo, fileTree, analysisResults, analysisConfig, isAnalysisLoading, analysisProgressMessage, error, dismissedFindings, isDocLoading, docProgressMessage, generatedDoc, docError, totalAnalyzableFiles },
     dispatch,
-    selectFileByPath
+    selectFileByPath,
+    openSettingsPanel
   } = useRepository();
   const { runAnalysis } = useAnalysisRunner();
 
@@ -185,10 +189,13 @@ export const AnalysisPanel: FC = () => {
         });
         dispatch({ type: 'RUN_DOC_GEN_SUCCESS', payload: result });
     } catch (err) {
+        if (err instanceof ApiKeyError && openSettingsPanel) {
+          openSettingsPanel();
+        }
         const message = err instanceof Error ? err.message : "An unknown error occurred during documentation generation.";
         dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
     }
-  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch]);
+  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel]);
 
   const isFileAnalysisDisabled = !selectedFile || selectedFile.isImage === true;
   const ConfigCollapseIcon = isConfigCollapsed ? ChevronDown : ChevronUp;
@@ -363,7 +370,10 @@ export const AnalysisPanel: FC = () => {
       
       {docError && !isDocLoading && (
         <div className="placeholder placeholder-top">
-           <div className="error-message">{docError}</div>
+          {isApiKeyError(docError)
+            ? <p className="warning-message">{docError}</p>
+            : <div className="error-message">{docError}</div>
+          }
         </div>
       )}
 
@@ -393,7 +403,11 @@ export const AnalysisPanel: FC = () => {
             </div>
           )}
 
-          {error && !isAnalysisLoading && <div className="error-message">{error}</div>}
+          {error && !isAnalysisLoading && (
+            isApiKeyError(error)
+              ? <div className="placeholder placeholder-top"><p className="warning-message">{error}</p></div>
+              : <div className="error-message">{error}</div>
+          )}
 
           {!isAnalysisLoading && !analysisResults && !error && (
             <div className="placeholder placeholder-top">

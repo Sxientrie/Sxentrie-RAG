@@ -26,6 +26,7 @@ import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_
 import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { GoogleGenAI, Type } from "@google/genai";
+import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
 
@@ -84,7 +85,7 @@ export const generateDocumentation = async (
 
     const apiKey = getApiKey();
     if (!apiKey) {
-      throw new Error("Gemini API key not found. Please set it in the Settings panel.");
+      throw new ApiKeyError("Gemini API key not found. Please set it in the Settings panel.");
     }
 
     onProgress('Initializing documentation engine');
@@ -146,7 +147,7 @@ export const runCodeAnalysis = async (
     
     const apiKey = getApiKey();
     if (!apiKey) {
-      throw new Error("Gemini API key not found. Please set it in the Settings panel.");
+      throw new ApiKeyError("Gemini API key not found. Please set it in the Settings panel.");
     }
 
     onProgress('Initializing analysis engine');

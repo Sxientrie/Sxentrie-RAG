@@ -235,6 +235,10 @@ export const App: FC = () => {
     const handleToggleSettings = useCallback(() => {
         setRightPanelView(prev => prev === 'viewer' ? 'settings' : 'viewer');
     }, []);
+
+    const handleOpenSettings = useCallback(() => {
+        setRightPanelView('settings');
+    }, []);
     
     const handleCloseSettings = useCallback(() => {
         setRightPanelView('viewer');
@@ -271,7 +275,12 @@ export const App: FC = () => {
               isRepoLoaded={isRepoLoaded}
             />
           </PageHeader>
-          <RepositoryProvider repoInfo={repoInfo} fileTree={fileTree} onError={handleRepositoryError}>
+          <RepositoryProvider 
+            repoInfo={repoInfo} 
+            fileTree={fileTree} 
+            onError={handleRepositoryError}
+            openSettingsPanel={handleOpenSettings}
+          >
             <div 
                 className="app-content-grid" 
                 ref={mainGridRef} 

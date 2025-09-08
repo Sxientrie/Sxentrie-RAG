@@ -21,9 +21,10 @@
 import { useCallback } from 'react';
 import { useRepository } from './repository-context';
 import { runCodeAnalysis } from '../infrastructure/gemini-service';
+import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 
 export const useAnalysisRunner = () => {
-  const { state, dispatch } = useRepository();
+  const { state, dispatch, openSettingsPanel } = useRepository();
   const { repoInfo, fileTree, analysisConfig, selectedFile } = state;
 
   const runAnalysis = useCallback(async (): Promise<void> => {
@@ -42,10 +43,13 @@ export const useAnalysisRunner = () => {
       });
       dispatch({ type: 'RUN_ANALYSIS_SUCCESS', payload: results });
     } catch (err) {
+      if (err instanceof ApiKeyError && openSettingsPanel) {
+        openSettingsPanel();
+      }
       const message = err instanceof Error ? err.message : "An unknown error occurred during analysis.";
       dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: message });
     }
-  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch]);
+  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel]);
 
   return { runAnalysis };
 };
