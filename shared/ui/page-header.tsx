@@ -34,8 +34,10 @@ export const PageHeader: FC<PageHeaderProps> = ({ children, onToggleSettings }) 
         <CodeXml size={20} strokeWidth={2} />
         <h1>
           <strong>Sxentrie:</strong>
-          {' '}
-          Instant <code>Code</code> Comprehension.
+          <span className="header-tagline">
+            {' '}
+            Instant <code>Code</code> Comprehension.
+          </span>
         </h1>
       </div>
       <div className="header-actions">

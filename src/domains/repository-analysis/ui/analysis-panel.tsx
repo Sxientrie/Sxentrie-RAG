@@ -1,6 +1,6 @@
 /**
  * @file src/domains/repository-analysis/ui/analysis-panel.tsx
- * @version 0.3.0
+ * @version 0.4.0
  * @description The UI panel for configuring and displaying code analysis results.
  *
  * @module RepositoryAnalysis.UI
@@ -21,6 +21,7 @@
  * - Exports the `AnalysisPanel` React component.
  *
  * @changelog
+ * - v0.4.0 (2025-09-15): Removed all local error rendering logic to delegate error display to the main app footer. Errors are now lifted up to the parent component.
  * - v0.3.0 (2025-09-08): Implemented dynamic file count preview for analysis scope options.
  * - v0.2.0 (2025-09-08): Implemented the UI and logic for the 'Generate Docs' feature.
  * - v0.1.0 (2025-09-08): File created and documented.
@@ -47,7 +48,8 @@ export const AnalysisPanel: FC = () => {
     state: { selectedFile, repoInfo, fileTree, analysisResults, analysisConfig, isAnalysisLoading, analysisProgressMessage, error, dismissedFindings, isDocLoading, docProgressMessage, generatedDoc, docError, totalAnalyzableFiles },
     dispatch,
     selectFileByPath,
-    openSettingsPanel
+    openSettingsPanel,
+    onError,
   } = useRepository();
   const { runAnalysis } = useAnalysisRunner();
 
@@ -194,8 +196,9 @@ export const AnalysisPanel: FC = () => {
         }
         const message = err instanceof Error ? err.message : "An unknown error occurred during documentation generation.";
         dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
+        if (onError) onError(message);
     }
-  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel]);
+  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
 
   const isFileAnalysisDisabled = !selectedFile || selectedFile.isImage === true;
   const ConfigCollapseIcon = isConfigCollapsed ? ChevronDown : ChevronUp;
@@ -368,15 +371,6 @@ export const AnalysisPanel: FC = () => {
         </div>
       )}
       
-      {docError && !isDocLoading && (
-        <div className="placeholder placeholder-top">
-          {isApiKeyError(docError)
-            ? <p className="warning-message">{docError}</p>
-            : <div className="error-message">{docError}</div>
-          }
-        </div>
-      )}
-
       {generatedDoc && !isDocLoading && !docError && (
         <div className="analysis-results">
             <div className="tabs">
@@ -401,12 +395,6 @@ export const AnalysisPanel: FC = () => {
                 {analysisProgressMessage || "Initializing analysis..."}
               </p>
             </div>
-          )}
-
-          {error && !isAnalysisLoading && (
-            isApiKeyError(error)
-              ? <div className="placeholder placeholder-top"><p className="warning-message">{error}</p></div>
-              : <div className="error-message">{error}</div>
           )}
 
           {!isAnalysisLoading && !analysisResults && !error && (

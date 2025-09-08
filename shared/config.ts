@@ -26,6 +26,7 @@ export const MAX_FILE_CACHE_SIZE = 50;
 // === UI Timings (in milliseconds) ===
 export const UI_DEBOUNCE_DELAY_MS = 100;
 export const UI_COPY_SUCCESS_TIMEOUT_MS = 2000;
+export const UI_ERROR_TOAST_TIMEOUT_MS = 5000;
 export const AUTH_POPUP_MONITOR_INTERVAL_MS = 500;
 
 // === Layout ===

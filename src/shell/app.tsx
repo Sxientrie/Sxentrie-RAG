@@ -32,7 +32,8 @@
  * @changelog
  * - v0.1.0 (2025-09-08): File created and documented.
  */
-import React, { FC, useReducer, useEffect, useMemo, useCallback, useRef, useState } from "react";
+// FIX: Import CSSProperties to correctly type the style object.
+import React, { FC, useReducer, useEffect, useMemo, useCallback, useRef, useState, CSSProperties } from "react";
 import { GitHubFile, RepoInfo } from "../domains/repository-analysis/domain";
 import { fetchRepoTree, parseGitHubUrl } from "../domains/repository-analysis/infrastructure/github-service";
 import { ApiError } from "../../shared/errors/api-error";
@@ -49,8 +50,9 @@ import { ErrorBoundary } from "../../shared/ui/error-boundary";
 import { Splitter } from "../../shared/ui/splitter";
 import { AuthProvider } from '../domains/accounts/application/auth-context';
 import { GitHubCallbackHandler } from '../domains/accounts/ui/github-callback-handler';
-import { SESSION_STORAGE_KEY, DEFAULT_PANEL_FLEX, MIN_PANEL_WIDTH_PX, AUTH_CALLBACK_PATH } from '../../shared/config';
+import { SESSION_STORAGE_KEY, DEFAULT_PANEL_FLEX, MIN_PANEL_WIDTH_PX, AUTH_CALLBACK_PATH, UI_ERROR_TOAST_TIMEOUT_MS } from '../../shared/config';
 import { SettingsPanel } from '../domains/settings/ui/settings-panel';
+import { useMediaQuery } from "../shared/hooks/use-media-query";
 
 type AppState = {
   repoUrl: string;
@@ -151,6 +153,7 @@ export const App: FC = () => {
     const mainGridRef = useRef<HTMLDivElement>(null);
     const animationFrameId = useRef<number | null>(null);
     const isRepoLoaded = !!repoInfo;
+    const isMobile = useMediaQuery('(max-width: 1024px)');
 
     useEffect(() => {
         try {
@@ -167,6 +170,16 @@ export const App: FC = () => {
             dispatch({ type: 'SET_TRANSIENT_ERROR', payload: 'Failed to save session to local storage.' });
         }
     }, [state.repoUrl, state.repoInfo, state.fileTree, state.panelWidths]);
+
+    useEffect(() => {
+        if (transientError) {
+            const timerId = setTimeout(() => {
+                dispatch({ type: 'SET_TRANSIENT_ERROR', payload: null });
+            }, UI_ERROR_TOAST_TIMEOUT_MS);
+    
+            return () => clearTimeout(timerId);
+        }
+    }, [transientError]);
 
     const handleLoadRepo = useCallback(async () => {
         const parsedInfo = parseGitHubUrl(repoUrl);
@@ -252,26 +265,27 @@ export const App: FC = () => {
         setRightPanelView('viewer');
     }, []);
 
-    const panelGridStyle = useMemo(() => ({
-      display: 'grid',
-      gridTemplateColumns: panelWidths.map(w => `${w}fr`).join(' 6px '),
-      height: '100%',
-    }), [panelWidths]);
+    // FIX: Add CSSProperties as the return type for useMemo to fix the TypeScript error.
+    const panelGridStyle = useMemo((): CSSProperties => {
+        if (isMobile) {
+            return { 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '8px', 
+                height: '100%',
+            };
+        }
+        return {
+            display: 'grid',
+            gridTemplateColumns: panelWidths.map(w => `${w}fr`).join(' 6px '),
+            height: '100%',
+        };
+    }, [isMobile, panelWidths]);
+
+    const displayError = localStorageError || transientError || error;
 
     return (
       <AuthProvider>
-        {(localStorageError || transientError || error) && (
-            <div className="error-banner">
-                <p>{localStorageError || transientError || error}</p>
-                <button
-                    className="error-banner-close-btn"
-                    onClick={handleClearError}
-                    aria-label="Close error message"
-                >
-                    <X size={16} />
-                </button>
-            </div>
-        )}
         <div className="main-app">
           <PageHeader onToggleSettings={handleToggleSettings}>
             <RepoLoader
@@ -302,11 +316,11 @@ export const App: FC = () => {
                         {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>Load a repository to see the file tree.</p></div>}
                     </Panel>
                 </ErrorBoundary>
-                <Splitter onResize={handleResize(0)} />
+                {!isMobile && <Splitter onResize={handleResize(0)} />}
                 <ErrorBoundary name="Analysis Panel">
                     <AnalysisPanel />
                 </ErrorBoundary>
-                <Splitter onResize={handleResize(1)} />
+                {!isMobile && <Splitter onResize={handleResize(1)} />}
                 <ErrorBoundary name="Right Panel">
                     {rightPanelView === 'viewer' ? (
                         <FileViewer onError={handleRepositoryError} />
@@ -316,7 +330,11 @@ export const App: FC = () => {
                 </ErrorBoundary>
             </div>
           </RepositoryProvider>
-          <Footer onResetLayout={handleResetLayout} />
+          <Footer 
+            onResetLayout={handleResetLayout}
+            errorMessage={displayError}
+            onClearError={handleClearError}
+          />
         </div>
       </AuthProvider>
     );

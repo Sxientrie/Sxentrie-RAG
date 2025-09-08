@@ -1,6 +1,6 @@
 /**
  * @file src/domains/repository-analysis/infrastructure/gemini-service.ts
- * @version 0.8.0
+ * @version 1.1.0
  * @description A service responsible for interacting with the Gemini API on the client-side to perform code analysis and documentation generation.
  *
  * @module RepositoryAnalysis.Infrastructure
@@ -15,10 +15,10 @@
  * - ../../../../shared/errors/api-key-error
  * - ./thought-stream-parser
  *
- * @outputs
- * - Exports the `runCodeAnalysis` and `generateDocumentation` functions.
- *
  * @changelog
+ * - v1.1.0 (2025-09-16): Implemented a more robust error parser to safely extract human-readable messages from raw API error responses, preventing unparsed JSON fragments in the UI.
+ * - v1.0.0 (2025-09-15): Implemented robust error parsing to catch raw Gemini API errors and transform them into user-friendly messages, preventing JSON blobs in the UI.
+ * - v0.9.0 (2025-09-14): Implemented advanced prompt engineering techniques based on the provided research document. Refactored all prompts to use XML structure, expert personas, Chain-of-Thought reasoning, and few-shot examples to significantly improve output quality and reliability.
  * - v0.8.0 (2025-09-13): Fixed a bug where the thought stream would stall during the "Technical Review" phase. Enabled `thinkingConfig` for the review API call and refactored stream processing to correctly handle thoughts for both analysis phases.
  * - v0.7.0 (2025-09-12): Reverted to a full client-side implementation to support static hosting (e.g., GitHub Pages). API key is now read from localStorage.
  * - v0.6.0 (2025-09-12): Implemented secure calls to backend serverless functions (/api/analyze, /api/document), enabling streaming thought process and removing client-side API key handling.
@@ -36,6 +36,59 @@ import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
 
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
+
+/**
+ * Parses a raw error from the Gemini API into a user-friendly string.
+ * This function is designed to handle complex error objects and stringified JSON.
+ * @param e The caught error object.
+ * @returns A new Error with a cleaned-up, human-readable message.
+ */
+const parseGeminiError = (e: unknown): Error => {
+    let friendlyMessage = 'An unknown error occurred with the Gemini API.';
+
+    if (e instanceof Error) {
+        const rawMessage = e.message;
+        try {
+            // Attempt to find and parse a JSON object within the raw error string.
+            // This is safer than assuming the whole string is JSON.
+            const jsonMatch = rawMessage.match(/\{.*\}/s);
+            if (jsonMatch && jsonMatch[0]) {
+                const errorObj = JSON.parse(jsonMatch[0]);
+                if (errorObj?.error?.message) {
+                    // This is the most likely path for Gemini API errors.
+                    friendlyMessage = errorObj.error.message;
+                } else {
+                     // Fallback if the JSON structure is unexpected.
+                    friendlyMessage = rawMessage;
+                }
+            } else {
+                // If no JSON is found, use the raw message.
+                friendlyMessage = rawMessage;
+            }
+        } catch (parseError) {
+            // If JSON parsing fails, the message is likely not structured JSON.
+            // Use the raw message and hope for the best.
+            friendlyMessage = rawMessage;
+        }
+    } else if (typeof e === 'string') {
+        friendlyMessage = e;
+    }
+
+    // Clean up the final message: remove escaped newlines, then trim.
+    const cleanedMessage = friendlyMessage.replace(/\\n/g, ' ').trim();
+
+    if (cleanedMessage.toLowerCase().includes('api key not valid')) {
+        return new ApiKeyError('Your Gemini API key is not valid. Please check it in Settings.');
+    }
+
+    // Final check to prevent gibberish from being displayed. A real message should have some length.
+    if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
+        return new Error("An unexpected error occurred. Please check the console for details.");
+    }
+    
+    return new Error(cleanedMessage);
+};
+
 
 /**
  * Helper to process a Gemini stream, extracting thoughts for progress updates.
@@ -111,7 +164,7 @@ const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string
         }
         const text = await res.text();
         const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + TRUNCATED_GEMINI_MESSAGE : text;
-        return `--- File: ${file.path} ---\n${cappedText}`;
+        return `<source_code file_path="${file.path}">\n${cappedText}\n</source_code>`;
       } catch (e) {
         console.error(`Error fetching content for ${file.path}:`, e);
         return '';
@@ -130,6 +183,7 @@ export const generateDocumentation = async (
     onProgress: (message: string) => void
   }
 ): Promise<string> => {
+  try {
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
@@ -147,23 +201,29 @@ export const generateDocumentation = async (
     }
 
     const documentationPrompt = `
-      You are an expert technical writer and senior software engineer with deep knowledge of software architecture and documentation best practices.
-      Your task is to generate clear, concise, and professional documentation for the provided codebase. Your analysis should be based ONLY on the provided code.
-      **RULES & CONSTRAINTS:**
-      1.  Your response MUST be in well-structured markdown.
-      2.  If the provided context contains multiple files from a project, you MUST generate a project README.md. This README should include the following sections:
-          -   A concise project summary.
-          -   An inferred technology stack (languages, frameworks, key libraries).
-          -   Instructions on how to set up and run the project, based on the file structure (e.g., package.json, requirements.txt).
-      3.  If the provided context contains only a single file, you MUST generate a detailed file overview document. This document should include:
-          -   A summary of the file's purpose and its primary responsibility within the larger project.
-          -   A list of the key functions, components, or classes exported by the file, complete with docstrings explaining their parameters and return values.
-          -   A description of the file's role in the overall application architecture.
-      4.  Do NOT add any preamble, comments, or explanation before or after the markdown output. Your response MUST be ONLY the generated markdown document.
-      ---
-      **CODEBASE TO DOCUMENT:**
-      ---
-      ${fileContentsString}
+<DocumentationRequest>
+  <Persona>
+    You are an expert technical writer specializing in creating high-quality, standards-compliant developer documentation for TypeScript and JavaScript codebases. You are an expert in the JSDoc and TSDoc formats.
+  </Persona>
+  <Instructions>
+    Your task is to generate JSDoc/TSDoc comment blocks for the functions, classes, and types in the provided code snippet. For each item, follow this process:
+    1.  **Analyze Signature:** Identify the name of the function/class and its full signature.
+    2.  **Extract Details:** Determine its overall purpose. List every parameter, its data type, and a brief description. Identify the return value and its data type.
+    3.  **Format Output:** Assemble the extracted information into a single, complete JSDoc/TSDoc comment block that immediately precedes the code it documents. Strictly follow the format shown in the \`<ExampleDocumentation>\`. Generate ONLY the comment block, with no other text or explanation.
+  </Instructions>
+  <ExampleDocumentation>
+/**
+ * Fetches user data from the API and processes it.
+ * @param {string} userId - The unique identifier for the user.
+ * @param {object} [options] - Optional settings for the data retrieval.
+ * @param {boolean} [options.includeProfile=false] - Whether to include the user's full profile.
+ * @returns {Promise<User|null>} A promise that resolves with the user object or null if not found.
+ */
+  </ExampleDocumentation>
+  <CodeToDocument>
+    ${fileContentsString}
+  </CodeToDocument>
+</DocumentationRequest>
     `;
 
     const modelConfig = { temperature: 0.5 };
@@ -186,6 +246,9 @@ export const generateDocumentation = async (
 
     onProgress('Finalizing documentation...');
     return accumulatedDoc;
+  } catch (e) {
+    throw parseGeminiError(e);
+  }
 };
 
 export const runCodeAnalysis = async (
@@ -197,6 +260,7 @@ export const runCodeAnalysis = async (
     onProgress: (message: string) => void
   }
 ): Promise<AnalysisResults> => {
+  try {
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
@@ -217,80 +281,82 @@ export const runCodeAnalysis = async (
 
     const overviewPrompt = isSingleFile
       ? `
-        You are a senior software engineer tasked with explaining a code file to a new team member.
-        Your analysis should be based ONLY on the provided code from the file '${files[0].path}'.
-        **RULES:**
-        1.  Your response MUST be in well-structured markdown, following the exact structure below.
-        2.  Do NOT add any preamble or explanation before or after the markdown.
-        ---
-        ### File Analysis: ${files[0].name}
+<FileOverviewRequest>
+  <Persona>
+    You are a senior software engineer tasked with explaining a code file to a new team member. Your expertise lies in distilling complex code into clear, understandable summaries.
+  </Persona>
+  <Instructions>
+    Your task is to provide a comprehensive analysis of the single source code file provided. The final output must be a well-structured Markdown document. Follow this internal reasoning process:
+    1.  **Purpose Identification:** Read the code to determine the file's primary role and responsibility within the context of a larger application.
+    2.  **Component Breakdown:** Identify the key functions, classes, types, or components defined within the file.
+    3.  **Synthesize and Format:** Combine your findings into a Markdown report. Strictly adhere to the format demonstrated in the \`<ExampleFileOverview>\`. Do NOT add any preamble or explanation before or after the markdown.
+  </Instructions>
+  <ExampleFileOverview>
+# File Analysis: ${files[0].name}
 
-        ## Summary
-        (Provide a 1-2 paragraph summary of the file's purpose, its primary responsibility, and its role within a potential larger project.)
+## Summary
+(A 1-2 paragraph summary of the file's purpose, its primary responsibility, and its role within a potential larger project.)
 
-        #### Core Responsibilities
-        - (List the key responsibilities of this file as bullet points.)
-
-        #### Key Components
-        - (List the main functions, classes, or components defined in this file and briefly describe what each one does.)
-        ---
-        **CODE:**
-        ---
-        ${fileContentsString}
+## Key Components
+- **[Component/Function Name]:** (Brief description of what it does.)
+  </ExampleFileOverview>
+  <SourceCode file_path="${files[0].path}">
+    ${fileContentsString}
+  </SourceCode>
+</FileOverviewRequest>
       `
       : `
-        You are a senior software engineer tasked with explaining a project to a new team member.
-        Your task is to provide a concise, high-level project overview based ONLY on the provided code from the '${repoName}' repository.
-        **RULES:**
-        1.  Your response MUST be in well-structured markdown, following the exact structure below.
-        2.  Do NOT add any preamble or explanation before or after the markdown.
-        ---
-        ### Project Overview: ${repoName}
+<ProjectOverviewRequest>
+  <Persona>
+    You are a Principal Software Architect with extensive experience in analyzing complex codebases and communicating their structure to technical stakeholders. Your expertise lies in identifying technology stacks, architectural patterns, and core functionalities from source code.
+  </Persona>
+  <Instructions>
+    Your task is to generate a comprehensive architectural overview of the provided repository context. The final output must be a well-structured Markdown document. Follow this internal reasoning process:
+    1.  **File-Level Abstraction:** For each file provided in the \`<RepositoryContext>\`, first generate a concise, one-sentence internal summary of its primary role or purpose.
+    2.  **Technology Stack Identification:** Analyze dependency management files to identify the core frameworks, languages, and key libraries. Corroborate this with import statements in the source code.
+    3.  **Architectural Pattern Inference:** Based on the directory structure and the relationships between the file summaries, infer the high-level architectural pattern (e.g., Monolithic, Microservices, MVC, Client-Server).
+    4.  **Core Component Analysis:** Identify and describe the main functional components of the application (e.g., "Authentication Service," "API Gateway," "UI Component Library"). Explain how they likely interact.
+    5.  **Synthesis:** Synthesize all of the above information into a single, coherent Markdown report. Strictly adhere to the format demonstrated in the \`<ExampleOverview>\` section.
+  </Instructions>
+  <ExampleOverview>
+# Architectural Overview
 
-        #### Summary
-        (Provide a 2-3 paragraph summary of the project's purpose, its primary features, and its intended use case based on the code.)
+## Technology Stack
+*   **Language:** TypeScript
+*   **Framework:** Next.js (React)
+*   **Styling:** Tailwind CSS
 
-        #### Key Features
-        - (Based on the code, list the main features or capabilities of the project as bullet points.)
+## Architectural Pattern
+The repository follows a classic **Client-Server architecture** with a monolithic frontend application built using Next.js.
 
-        #### Technology Stack
-        - (Infer and list the technology stack, including languages, frameworks, and key libraries, as bullet points.)
-
-        #### Architectural Notes
-        (Provide a brief, high-level observation about the project's structure. For example, "This appears to be a standard client-server application with a React frontend" or "The project follows a component-based architecture.")
-        ---
-        **CODE:**
-        ---
-        ${fileContentsString}
+## Core Components
+*   **/src/app/api/**: Defines the backend API routes.
+*   **/src/components/**: Contains reusable React components.
+*   **/src/hooks/**: Houses custom React hooks for managing client-side logic.
+  </ExampleOverview>
+  <RepositoryContext>
+    ${fileContentsString}
+  </RepositoryContext>
+</ProjectOverviewRequest>
       `;
 
-    const reviewFocus = config.customRules
-      ? `In addition to your standard analysis, the user has provided the following directives to guide your review: "${config.customRules}". Please prioritize these areas where applicable.`
-      : 'Your focus is on providing a comprehensive, high-quality code review. Identify potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, readability, and adherence to best practices. Be as thorough and insightful as possible.';
-
     const reviewPrompt = `
-      You are an expert code reviewer with a meticulous eye for detail. Your task is to perform a technical review of the provided code. ${reviewFocus}
-      Your entire output must be a valid JSON array of 'Finding' objects. Each 'Finding' object must conform to the following schema:
-      -   \`fileName\`: The full path of the file being reviewed.
-      -   \`severity\`: A string indicating the issue's severity. Must be one of: "Critical", "High", "Medium", or "Low".
-      -   \`finding\`: A concise title for the issue (e.g., "Unused State Variable," "Inefficient String Concatenation").
-      -   \`explanation\`: An array of objects, where each object represents a step in the explanation. An object in this array must have:
-          -   \`type\`: Either "text" or "code".
-          -   \`content\`: The string content for the text or code block.
-      -   \`startLine\`: (Optional) The starting line number of the code snippet the finding refers to.
-      -   \`endLine\`: (Optional) The ending line number of the code snippet.
-      **Instructions:**
-      1.  For each issue you identify, structure your explanation as a logical narrative.
-      2.  Begin with a piece of text that describes the problem and shows the problematic code snippet immediately after.
-      3.  Follow up with text that explains the suggested fix, and then provide the corrected code snippet.
-      4.  Ensure that the \`explanation\` array alternates between "text" and "code" types to create a clear, easy-to-follow review.
-      5.  Your response MUST be ONLY the JSON array. Do not include any preamble, comments, or markdown formatting outside of the JSON structure itself.
-      6.  If you find no issues, return an empty JSON array: [].
-      7.  Assign a \`severity\` based on the potential impact: "Critical" for security vulnerabilities or major bugs, "High" for performance issues or significant logical errors, "Medium" for deviations from best practices, and "Low" for stylistic suggestions or minor issues.
-      ---
-      **CODE:**
-      ---
-      ${fileContentsString}
+<CodeReviewRequest>
+  <Persona>
+    You are an expert code reviewer and principal software engineer with deep expertise in identifying security vulnerabilities, performance bottlenecks, code smells, and violations of modern software engineering best practices. Your feedback is always constructive, precise, and actionable.
+  </Persona>
+  <Instructions>
+    Your task is to conduct a thorough review of the provided source code. Follow this multi-step process internally:
+    1.  **Initial Scan:** Identify the primary programming languages, frameworks, and key libraries used in the provided files.
+    2.  **Establish Criteria:** Based on the tech stack, formulate a mental checklist of common issues to look for. For example, for a React/TypeScript project, consider issues like prop drilling, inefficient state management, incorrect hook usage, type safety violations, and accessibility anti-patterns. For a Node.js backend, consider async error handling, security headers, dependency vulnerabilities, and inefficient database queries.
+    3.  **Detailed Analysis:** Review the code file-by-file and line-by-line against your established criteria. For each issue you identify, pinpoint the exact file and line number.
+    4.  **Classification and Solution:** For each identified issue, classify its severity from the allowed list: "Critical", "High", "Medium", "Low". Then, formulate a clear, concise description of the problem and a practical, actionable suggestion for how to fix it, including a brief code example where applicable.
+    5.  **Final Output:** Aggregate all your findings into a JSON array. The structure of this JSON array is strictly defined by the \`response_schema\` provided in the API call. Do not add any explanatory text, markdown, or any content outside of the final JSON array.
+  </Instructions>
+  <SourceCode>
+    ${fileContentsString}
+  </SourceCode>
+</CodeReviewRequest>
     `;
 
     const reviewSchema = {
@@ -340,12 +406,12 @@ export const runCodeAnalysis = async (
     const parser = new ThoughtStreamParser();
 
     // --- Phase 1: Overview Generation ---
-    onProgress('Generating Project Overview...');
+    onProgress('Phase 1/2: Generating Project Overview...');
     const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
     const overviewText = await processStreamWithThoughts(overviewStream, parser, onProgress);
 
     // --- Phase 2: Technical Review ---
-    onProgress('Performing Technical Review...');
+    onProgress('Phase 2/2: Performing Technical Review...');
     const reviewStream = await ai.models.generateContentStream({
       model: config.model,
       contents: reviewPrompt,
@@ -357,4 +423,7 @@ export const runCodeAnalysis = async (
     const reviewJson = JSON.parse(reviewText.trim());
     const finalResult = { overview: overviewText, review: reviewJson };
     return finalResult;
+  } catch (e) {
+      throw parseGeminiError(e);
+  }
 };

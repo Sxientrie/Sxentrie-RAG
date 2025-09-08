@@ -1,6 +1,6 @@
 /**
  * @file src/domains/repository-analysis/application/use-analysis-runner.ts
- * @version 0.1.0
+ * @version 0.2.0
  * @description A custom hook to encapsulate the logic for initiating and managing a code analysis run.
  *
  * @module RepositoryAnalysis.Application
@@ -16,6 +16,7 @@
  * - Exports the `useAnalysisRunner` hook.
  *
  * @changelog
+ * - v0.2.0 (2025-09-15): Modified to lift errors up to the main app shell via the `onError` callback for centralized display.
  * - v0.1.0 (2025-09-08): File created and documented.
  */
 import { useCallback } from 'react';
@@ -24,12 +25,14 @@ import { runCodeAnalysis } from '../infrastructure/gemini-service';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 
 export const useAnalysisRunner = () => {
-  const { state, dispatch, openSettingsPanel } = useRepository();
+  const { state, dispatch, openSettingsPanel, onError } = useRepository();
   const { repoInfo, fileTree, analysisConfig, selectedFile } = state;
 
   const runAnalysis = useCallback(async (): Promise<void> => {
     if (!repoInfo) {
-      dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: "A repository must be loaded before running analysis." });
+      const errorMessage = "A repository must be loaded before running analysis.";
+      dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: errorMessage });
+      if (onError) onError(errorMessage);
       return;
     }
     dispatch({ type: 'RUN_ANALYSIS_START' });
@@ -48,8 +51,9 @@ export const useAnalysisRunner = () => {
       }
       const message = err instanceof Error ? err.message : "An unknown error occurred during analysis.";
       dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: message });
+      if (onError) onError(message); // Lift the error up to the app shell
     }
-  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel]);
+  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
 
   return { runAnalysis };
 };
