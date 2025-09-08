@@ -1,7 +1,7 @@
 {
   "name": "sxentrie-instant-code-comprehension",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,18 +9,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "@google/genai": "0.11.3",
-    "lucide-react": "0.418.0",
-    "react-markdown": "9.0.1",
-    "remark-gfm": "4.0.0",
-    "react-syntax-highlighter": "^15.6.6",
-    "jose": "5.6.3",
-    "react-dom": "^19.1.1"
+    "@google/genai": "^0.11.3",
+    "jose": "^5.6.3",
+    "lucide-react": "^0.418.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
+    "react-syntax-highlighter": "^15.5.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0"
   }
 }

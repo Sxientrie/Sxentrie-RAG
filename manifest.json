@@ -5,5 +5,5 @@
   "display": "standalone",
   "theme_color": "#1a1a1a",
   "background_color": "#1a1a1a",
-  "description": "An AI-powered analysis suite for GitHub repositories."
+  "description": "An RAG analysis suite for GitHub repositories."
 }
