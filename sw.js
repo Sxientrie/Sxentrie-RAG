@@ -1,8 +1,9 @@
-const CACHE_NAME = 'sxentrie-cache-v1';
+const CACHE_NAME = 'sxentrie-cache-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/index.tsx',
+  './',
+  './index.html',
+  './index.tsx',
+  './manifest.json',
 ];
 
 self.addEventListener('install', event => {
