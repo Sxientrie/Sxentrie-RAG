@@ -1,4 +1,27 @@
-import React, { FC, useState, useEffect, useMemo } from "react";
+/**
+ * @file src/domains/repository-analysis/ui/file-tree.tsx
+ * @version 0.1.0
+ * @description A component that renders an interactive, collapsible tree view of the repository's file structure.
+ *
+ * @module RepositoryAnalysis.UI
+ *
+ * @summary This component recursively renders the file and directory structure of a loaded repository. It manages the open/closed state of directories, handles file selection events, provides file-type-specific icons, and includes a search/filter functionality to navigate large repositories easily.
+ *
+ * @dependencies
+ * - react
+ * - lucide-react
+ * - ../domain
+ * - ../application/repository-context
+ * - ../../../../shared/ui/error-boundary
+ * - ../../../../shared/config
+ *
+ * @outputs
+ * - Exports the `FileTree` React component.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
+import React, { FC, useState, useEffect, useMemo, useCallback } from "react";
 import { GitHubFile } from "../domain";
 import {
     File,
@@ -18,6 +41,7 @@ import {
 import { useRepository } from "../application/repository-context";
 import { Search, X } from 'lucide-react';
 import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
+import { UI_DEBOUNCE_DELAY_MS } from "../../../../shared/config";
 
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -75,11 +99,18 @@ interface TreeItemProps {
     openDirs: Set<string>;
     onToggle: (path: string) => void;
     searchTerm: string;
+    analysisPreviewPaths: Set<string>;
 }
 
-const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs, onToggle, searchTerm }) => {
+const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs, onToggle, searchTerm, analysisPreviewPaths }) => {
     const isDir = item.type === 'dir';
     const isOpen = !!searchTerm.trim() || openDirs.has(item.path);
+    const isAnalysisTarget = item.type === 'file' && analysisPreviewPaths.has(item.path);
+
+    const classNames = ['tree-item'];
+    if (selectedPath === item.path) classNames.push('selected');
+    if (isAnalysisTarget) classNames.push('analysis-target');
+
 
     const handleItemClick = () => {
         if (isDir) {
@@ -92,7 +123,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
     return (
         <li>
             <div
-                className={`tree-item ${selectedPath === item.path ? 'selected' : ''}`}
+                className={classNames.join(' ')}
                 onClick={handleItemClick}
                 role="button"
                 tabIndex={0}
@@ -104,7 +135,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 <span>{item.name}</span>
             </div>
             {isDir && isOpen && item.content && (
-                <div className="tree-indentation">
+                <ul className="tree-indentation">
                   {item.content.map(child => (
                       <TreeItem 
                         key={child.path} 
@@ -114,9 +145,10 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                         openDirs={openDirs}
                         onToggle={onToggle}
                         searchTerm={searchTerm}
+                        analysisPreviewPaths={analysisPreviewPaths}
                       />
                   ))}
-                </div>
+                </ul>
             )}
         </li>
     );
@@ -141,7 +173,7 @@ const filterFileTree = (nodes: GitHubFile[], term: string): GitHubFile[] => {
 
 export const FileTree: FC = () => {
   const { state, dispatch, handleFileClick } = useRepository();
-  const { fileTree, selectedFile, searchTerm } = state;
+  const { fileTree, selectedFile, searchTerm, analysisPreviewPaths } = state;
   const [openDirs, setOpenDirs] = useState<Set<string>>(new Set());
   
   const filteredFileTree = useMemo(() => filterFileTree(fileTree, searchTerm), [fileTree, searchTerm]);
@@ -167,11 +199,11 @@ export const FileTree: FC = () => {
             if (selectedElement) {
                 selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
-        }, 100);
+        }, UI_DEBOUNCE_DELAY_MS);
     }
   }, [selectedPath]);
 
-  const handleToggle = (path: string) => {
+  const handleToggle = useCallback((path: string) => {
       setOpenDirs(prevOpenDirs => {
           const newOpenDirs = new Set(prevOpenDirs);
           if (newOpenDirs.has(path)) {
@@ -181,49 +213,62 @@ export const FileTree: FC = () => {
           }
           return newOpenDirs;
       });
-  };
+  }, []);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value });
+  }, [dispatch]);
+
+  const handleClearSearch = useCallback(() => {
+    dispatch({ type: 'SET_SEARCH_TERM', payload: '' });
+  }, [dispatch]);
 
   return (
-    <>
-      <div className="file-search-input-wrapper">
+    <div className="file-tree-container">
+      <div className="file-search-area">
+        <div className="file-search-input-wrapper">
           <Search size={12} />
           <input
-              type="text"
-              className="file-search-input"
-              placeholder="Search files and folders..."
-              value={searchTerm}
-              onChange={(e) => dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value })}
-              disabled={fileTree.length === 0}
-              aria-label="Search files in repository"
+            type="text"
+            className="file-search-input"
+            placeholder="Search files and folders..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            disabled={fileTree.length === 0}
+            aria-label="Search files in repository"
           />
           {searchTerm && (
-              <button
-                  className="file-search-clear-btn"
-                  onClick={() => dispatch({ type: 'SET_SEARCH_TERM', payload: '' })}
-                  aria-label="Clear search term"
-              >
-                  <X size={14} />
-              </button>
+            <button
+              className="file-search-clear-btn"
+              onClick={handleClearSearch}
+              aria-label="Clear search term"
+            >
+              <X size={14} />
+            </button>
           )}
+        </div>
       </div>
-      {fileTree.length > 0 && (
+      <div className="file-tree-scroll-area">
+        {fileTree.length > 0 && (
           <ErrorBoundary name="File Tree">
-              <ul className="file-tree">
-                {filteredFileTree.map(file => (
-                    <TreeItem 
-                        key={file.path} 
-                        item={file} 
-                        onFileClick={handleFileClick} 
-                        selectedPath={selectedPath}
-                        openDirs={openDirs}
-                        onToggle={handleToggle}
-                        searchTerm={searchTerm}
-                    />
-                ))}
-              </ul>
-              {searchTerm && filteredFileTree.length === 0 && (<div className="placeholder">No files found matching "{searchTerm}".</div>)}
+            <ul className="file-tree">
+              {filteredFileTree.map(file => (
+                <TreeItem
+                  key={file.path}
+                  item={file}
+                  onFileClick={handleFileClick}
+                  selectedPath={selectedPath}
+                  openDirs={openDirs}
+                  onToggle={handleToggle}
+                  searchTerm={searchTerm}
+                  analysisPreviewPaths={analysisPreviewPaths}
+                />
+              ))}
+            </ul>
+            {searchTerm && filteredFileTree.length === 0 && (<div className="placeholder">No files found matching "{searchTerm}".</div>)}
           </ErrorBoundary>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   );
 };

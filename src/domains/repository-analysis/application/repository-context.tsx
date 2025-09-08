@@ -1,6 +1,30 @@
+/**
+ * @file src/domains/repository-analysis/application/repository-context.tsx
+ * @version 0.3.0
+ * @description React Context and provider for managing the state of the repository analysis feature.
+ *
+ * @module RepositoryAnalysis.Application
+ *
+ * @summary This file implements the state management for the repository analysis domain using a React Context and a `useReducer` hook. It holds state related to the file tree, selected file, file content cache, analysis results, and loading statuses. It also provides logic for file selection and content fetching.
+ *
+ * @dependencies
+ * - react
+ * - ../domain
+ * - ../../../../shared/config
+ * - ./file-tree-utils
+ *
+ * @outputs
+ * - Exports `RepositoryProvider` component and `useRepository` hook.
+ *
+ * @changelog
+ * - v0.3.0 (2025-09-08): Added state for total analyzable file count to support dynamic UI previews.
+ * - v0.2.0 (2025-09-08): Added state management for documentation generation feature.
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect, useMemo } from 'react';
 import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES } from '../domain';
-import { MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE } from '../../../../shared/config';
+import { MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE } from '../../../../shared/config';
+import { collectAllFiles } from './file-tree-utils';
 
 const isImagePath = (path: string): boolean => /\.(png|jpe?g|gif|webp|svg|ico)$/i.test(path);
 
@@ -33,6 +57,12 @@ type RepositoryState = {
   findingsMap: Map<string, Map<number, TechnicalReviewFinding>>;
   dismissedFindings: Set<string>;
   error: string | null;
+  isDocLoading: boolean;
+  docProgressMessage: string;
+  generatedDoc: string | null;
+  docError: string | null;
+  totalAnalyzableFiles: number;
+  analysisPreviewPaths: Set<string>;
 };
 
 export type RepositoryAction =
@@ -49,7 +79,13 @@ export type RepositoryAction =
   | { type: 'SET_ACTIVE_LINE_RANGE'; payload: { start: number; end: number } | null }
   | { type: 'DISMISS_FINDING'; payload: string }
   | { type: 'RESET_DISMISSED_FINDINGS' }
-  | { type: 'RESET' };
+  | { type: 'RESET' }
+  | { type: 'RUN_DOC_GEN_START' }
+  | { type: 'SET_DOC_GEN_PROGRESS'; payload: string }
+  | { type: 'RUN_DOC_GEN_SUCCESS'; payload: string }
+  | { type: 'RUN_DOC_GEN_ERROR'; payload: string }
+  | { type: 'CLEAR_DOC' }
+  | { type: 'SET_ANALYSIS_PREVIEW_PATHS'; payload: Set<string> };
 
 const createInitialState = (): RepositoryState => ({
   repoInfo: null,
@@ -65,18 +101,27 @@ const createInitialState = (): RepositoryState => ({
   findingsMap: new Map(),
   dismissedFindings: new Set(),
   error: null,
+  isDocLoading: false,
+  docProgressMessage: '',
+  generatedDoc: null,
+  docError: null,
+  totalAnalyzableFiles: 0,
+  analysisPreviewPaths: new Set(),
 });
 
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
   switch (action.type) {
     case 'RESET':
       return createInitialState();
-    case 'INITIALIZE_STATE':
+    case 'INITIALIZE_STATE': {
+      const totalAnalyzableFiles = collectAllFiles(action.payload.fileTree).length;
       return {
         ...createInitialState(),
         repoInfo: action.payload.repoInfo,
         fileTree: action.payload.fileTree,
+        totalAnalyzableFiles,
       };
+    }
     case 'SELECT_FILE_START':
       return {
         ...state,
@@ -112,6 +157,8 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
         analysisResults: null,
         findingsMap: new Map(),
         dismissedFindings: new Set(),
+        generatedDoc: null,
+        docError: null,
       };
     case 'SET_ANALYSIS_PROGRESS':
       return { ...state, analysisProgressMessage: action.payload };
@@ -148,6 +195,40 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
     }
     case 'RESET_DISMISSED_FINDINGS':
       return { ...state, dismissedFindings: new Set() };
+    case 'RUN_DOC_GEN_START':
+      return {
+        ...state,
+        isDocLoading: true,
+        docProgressMessage: 'Preparing to generate documentation...',
+        generatedDoc: null,
+        docError: null,
+        analysisResults: null, // Clear analysis to show doc view
+        error: null,
+      };
+    case 'SET_DOC_GEN_PROGRESS':
+      return { ...state, docProgressMessage: action.payload };
+    case 'RUN_DOC_GEN_SUCCESS':
+      return {
+        ...state,
+        isDocLoading: false,
+        generatedDoc: action.payload,
+      };
+    case 'RUN_DOC_GEN_ERROR':
+      return {
+        ...state,
+        isDocLoading: false,
+        docError: action.payload,
+      };
+    case 'CLEAR_DOC':
+      return {
+        ...state,
+        isDocLoading: false,
+        docProgressMessage: '',
+        generatedDoc: null,
+        docError: null,
+      };
+    case 'SET_ANALYSIS_PREVIEW_PATHS':
+      return { ...state, analysisPreviewPaths: action.payload };
     default:
       return state;
   }
@@ -200,7 +281,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
       const text = await response.text();
       const cappedText = text.length > MAX_DISPLAY_FILE_SIZE
-        ? text.substring(0, MAX_DISPLAY_FILE_SIZE) + "\n\n... (file truncated for display)"
+        ? text.substring(0, MAX_DISPLAY_FILE_SIZE) + TRUNCATED_DISPLAY_MESSAGE
         : text;
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: cappedText, isImage: false, url: file.download_url } });
     } catch (err) {

@@ -1,3 +1,21 @@
+/**
+ * @file src/domains/repository-analysis/infrastructure/thought-stream-parser.ts
+ * @version 0.1.0
+ * @description A utility class to parse and extract meaningful progress messages from a Gemini "thought" stream.
+ *
+ * @module RepositoryAnalysis.Infrastructure
+ *
+ * @summary This class is designed to process the streaming "thought" text from the Gemini API. It buffers the incoming text chunks and uses heuristics (like finding the last bolded statement or list item) to extract the most recent, complete thought, providing a coherent progress message for the UI.
+ *
+ * @dependencies
+ * - None
+ *
+ * @outputs
+ * - Exports the `ThoughtStreamParser` class.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 export class ThoughtStreamParser {
   private buffer: string = "";
   private latestSummary: string | null = null;

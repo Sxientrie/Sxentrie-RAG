@@ -1,3 +1,21 @@
+/**
+ * @file shared/ui/splitter.tsx
+ * @version 0.1.0
+ * @description A UI component that allows users to resize adjacent panels by dragging.
+ *
+ * @module Core.UI
+ *
+ * @summary This component renders a draggable vertical bar. It handles mouse events (`onMouseDown`, `onMouseMove`, `onMouseUp`) to calculate the horizontal drag distance and invokes an `onResize` callback with the delta. This enables the dynamic resizing of the main layout panels.
+ *
+ * @dependencies
+ * - react
+ *
+ * @outputs
+ * - Exports the `Splitter` React component.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import React, { FC, useCallback, useRef, useEffect } from 'react';
 
 interface SplitterProps {

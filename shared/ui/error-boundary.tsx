@@ -1,3 +1,22 @@
+/**
+ * @file shared/ui/error-boundary.tsx
+ * @version 0.1.0
+ * @description A React Error Boundary component to catch and handle rendering errors in its children.
+ *
+ * @module Core.UI
+ *
+ * @summary This is a class-based React component that implements the `componentDidCatch` lifecycle method. It wraps parts of the UI, catching any JavaScript errors during rendering, and displays a user-friendly fallback UI instead of crashing the application section. It also includes a reset mechanism.
+ *
+ * @dependencies
+ * - react
+ * - lucide-react
+ *
+ * @outputs
+ * - Exports the `ErrorBoundary` React component.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RotateCw } from 'lucide-react';
 

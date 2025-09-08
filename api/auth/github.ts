@@ -1,4 +1,24 @@
+/**
+ * @file api/auth/github.ts
+ * @version 0.1.0
+ * @description A serverless function to handle the GitHub OAuth callback, exchange the code for a token, and create a session.
+ *
+ * @module API.Auth
+ *
+ * @summary This serverless function acts as the backend for the GitHub OAuth flow. It receives the temporary code from the client, securely exchanges it with GitHub for an access token, uses that token to fetch the user's profile, and finally creates a secure, HttpOnly JWT session cookie before returning the user profile to the client.
+ *
+ * @dependencies
+ * - jose
+ * - ../_constants
+ *
+ * @outputs
+ * - Exports the serverless function handler.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import { SignJWT } from 'jose';
+import { JWT_EXPIRATION_TIME, JWT_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from '../_constants';
 
 // This interface is a simple stand-in for a full serverless platform's Request object.
 interface ServerlessRequest {
@@ -80,10 +100,10 @@ export default async function handler(request: ServerlessRequest) {
     const jwt = await new SignJWT(userProfile)
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('30d')
+      .setExpirationTime(JWT_EXPIRATION_TIME)
       .sign(secret);
 
-    const cookie = `session=${jwt}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=2592000`; // Max-Age = 30 days
+    const cookie = `${SESSION_COOKIE_NAME}=${jwt}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SECONDS}`;
 
     // Step 4: Return the user profile and set the JWT cookie
     return new Response(JSON.stringify(userProfile), {

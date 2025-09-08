@@ -1,4 +1,30 @@
-import React, { FC, useState } from 'react';
+/**
+ * @file src/domains/repository-analysis/ui/analysis-report-view.tsx
+ * @version 0.2.0
+ * @description A component that renders the analysis results in a tabbed view for "Overview" and "Technical Review".
+ *
+ * @module RepositoryAnalysis.UI
+ *
+ * @summary This component is responsible for presenting the final analysis results. It uses a tabbed interface to separate the project overview from the detailed technical review findings. It maps over the review findings, renders each one with syntax-highlighted code blocks, and handles the logic for dismissing findings.
+ *
+ * @dependencies
+ * - react
+ * - react-markdown
+ * - remark-gfm
+ * - react-syntax-highlighter
+ * - lucide-react
+ * - ../domain
+ * - ../application/repository-context
+ * - ../../../../shared/lib/get-language
+ *
+ * @outputs
+ * - Exports the `AnalysisReportView` React component.
+ *
+ * @changelog
+ * - v0.2.0 (2025-09-10): Added severity badges to technical review findings for prioritization.
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
+import React, { FC, useState, useCallback, useMemo } from 'react';
 import { AnalysisResults, TechnicalReviewFinding, ANALYSIS_TABS } from '../domain';
 import { useRepository } from '../application/repository-context';
 import { RepositoryAction } from '../application/repository-context';
@@ -33,7 +59,7 @@ interface FindingProps {
 const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDismiss }) => {
   const language = getLanguage(finding.fileName);
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     onFileSelect(finding.fileName);
     if (finding.startLine && finding.endLine) {
       dispatch({
@@ -43,14 +69,17 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
     } else {
       dispatch({ type: 'SET_ACTIVE_LINE_RANGE', payload: null });
     }
-  };
+  }, [onFileSelect, finding.fileName, finding.startLine, finding.endLine, dispatch]);
 
   return (
     <div className="review-finding">
       <div className="review-finding-header">
-        <button className="clickable-filepath" onClick={handleClick}>
-          {finding.fileName}
-        </button>
+        <div className="finding-header-left">
+            <span className={`severity-badge severity-${finding.severity.toLowerCase()}`}>{finding.severity}</span>
+            <button className="clickable-filepath" onClick={handleClick}>
+              {finding.fileName}
+            </button>
+        </div>
         <button
           className="panel-action-btn"
           onClick={() => onDismiss(id)}
@@ -96,17 +125,18 @@ export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResult
   const { state: { dismissedFindings }, dispatch } = useRepository();
   const [activeTab, setActiveTab] = useState<ANALYSIS_TABS>(ANALYSIS_TABS.OVERVIEW);
 
-  const findingWithIds = analysisResults.review.map((finding, i) => ({
+  const findingWithIds = useMemo(() => analysisResults.review.map((finding, i) => ({
     ...finding,
     id: `${finding.fileName}-${finding.finding}-${i}`
-  })) || [];
+  })), [analysisResults.review]);
 
+  const visibleFindings = useMemo(() => findingWithIds.filter(f => !dismissedFindings.has(f.id)), [findingWithIds, dismissedFindings]);
+  
   const dismissedCount = dismissedFindings.size;
-  const visibleFindings = findingWithIds.filter(f => !dismissedFindings.has(f.id));
 
-  const handleDismiss = (id: string) => {
+  const handleDismiss = useCallback((id: string) => {
     dispatch({ type: 'DISMISS_FINDING', payload: id });
-  };
+  }, [dispatch]);
 
   return (
     <div className="analysis-results">

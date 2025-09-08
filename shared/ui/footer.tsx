@@ -1,3 +1,22 @@
+/**
+ * @file shared/ui/footer.tsx
+ * @version 0.1.0
+ * @description The shared footer component for the main application layout.
+ *
+ * @module Core.UI
+ *
+ * @summary This component renders the footer content, including copyright information and a button to reset the panel layout. It receives the reset handler as a prop to decouple its presentation from the application's state logic.
+ *
+ * @dependencies
+ * - react
+ * - lucide-react
+ *
+ * @outputs
+ * - Exports the `Footer` React component.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import React, { FC } from 'react';
 import { RefreshCw } from 'lucide-react';
 

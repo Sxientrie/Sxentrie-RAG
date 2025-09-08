@@ -1,7 +1,30 @@
+/**
+ * @file src/domains/accounts/application/auth-context.tsx
+ * @version 0.1.0
+ * @description React Context and provider for managing global authentication state.
+ *
+ * @module Accounts.Application
+ *
+ * @summary This file implements the state management for authentication using a React Context and a `useReducer` hook. It handles login/logout actions, checks for an existing session on initial load, and manages loading and error states related to authentication. It provides the auth state to the entire application.
+ *
+ * @dependencies
+ * - react
+ * - ../domain/user
+ * - ../infrastructure/auth-service
+ * - ../../../shared/ui/app-loader
+ * - ../../../../shared/config
+ *
+ * @outputs
+ * - Exports `AuthProvider` component and `useAuth` hook.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import React, { createContext, useReducer, useContext, ReactNode, FC, useCallback, useEffect, useRef } from 'react';
 import { AuthSession, User } from '../domain/user';
 import { authService } from '../infrastructure/auth-service';
 import { AppLoader } from '../../../shared/ui/app-loader';
+import { AUTH_POPUP_MONITOR_INTERVAL_MS, AUTH_SUCCESS_MESSAGE_TYPE, AUTH_ERROR_MESSAGE_TYPE } from '../../../../shared/config';
 
 type AuthAction =
   | { type: 'LOGIN_START' }
@@ -93,9 +116,9 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
 
       const { type, user, error } = event.data;
 
-      if (type === 'auth-success' && user) {
+      if (type === AUTH_SUCCESS_MESSAGE_TYPE && user) {
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user } });
-      } else if (type === 'auth-error') {
+      } else if (type === AUTH_ERROR_MESSAGE_TYPE) {
         dispatch({ type: 'LOGIN_ERROR', payload: { error: error || 'Authentication failed in popup.' } });
       }
       
@@ -114,7 +137,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
           dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Login cancelled.' }});
         }
       }
-    }, 500);
+    }, AUTH_POPUP_MONITOR_INTERVAL_MS);
 
   }, [dispatch]);
 

@@ -6,7 +6,7 @@ By simply providing a public GitHub URL, you can instantly browse the repository
 
   * **Instant, Browser-Based Access:** No installation, no setup, no IDE required. Paste a GitHub repository URL and start exploring immediately.
   * **Interactive Code Navigation:** Browse the complete file and directory structure of any public repository through a clean and intuitive tree view.
-  * **LLM-Powered Project Overview:** Get a high-level understanding of any repository. Sxentrie's analysis explains the project's purpose, key features, and technology stack in concise, human-readable language.
+  * **Detailed Project Overview:** Get a high-level understanding of any repository. Sxentrie's analysis explains the project's purpose, key features, and technology stack in concise, human-readable language.
   * **In-Depth Technical Review:** Go beyond surface-level stats. The technical review identifies potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, complete with code snippets and explanations.
   * **Secure User Accounts:** Log in with your GitHub account to unlock personalized features and future capabilities.
 
@@ -16,7 +16,7 @@ The process is designed to be as simple as possible:
 
 1.  **Paste URL:** Provide a link to any public GitHub repository.
 2.  **Load Repository:** Sxentrie fetches the repository's file structure, allowing you to browse its contents.
-3.  **Run Analysis:** Initiate the AI analysis on the entire repository or a single file. The results are presented in a clear, two-tab view for easy digestion.
+3.  **Run Analysis:** Initiate the Code analysis on the entire repository or a single file. The results are presented in a clear, two-tab view for easy digestion.
 
 ## Technology Stack
 
@@ -35,14 +35,19 @@ To run this project locally, you will need to:
     ```bash
     git clone https://github.com/your-username/sxentrie.git
     ```
-2.  **Configure Environment Variables:**
-      * The serverless functions in the `api/` directory require environment variables for authentication and AI services. You will need to create a `.env` file in that directory with the following keys:
-          * `GITHUB_CLIENT_ID`
-          * `GITHUB_CLIENT_SECRET`
-          * `JWT_SECRET` (a long, random string you create for signing sessions)
-      * The frontend client in `src/` requires the Gemini API key. Refer to the project's setup for instructions on providing this key.
+2.  **Configure GitHub Client ID:**
+    *   For the authentication feature to work, you must provide your GitHub OAuth App's Client ID.
+    *   Open the file: `src/domains/accounts/infrastructure/auth-service.ts`.
+    *   Find the constant: `const GITHUB_CLIENT_ID = 'VITE_GITHUB_CLIENT_ID_PLACEHOLDER';`
+    *   Replace `'VITE_GITHUB_CLIENT_ID_PLACEHOLDER'` with your actual Client ID string.
+    *   **Note:** For a production deployment, it is strongly recommended to follow the `GUIDE.md` to set up a proper build process with environment variables instead of hardcoding secrets.
+
 3.  **Run the Application:**
-      * Serve the root `index.html` file using any simple local web server. The application has no build step.
+    *   Serve the root `index.html` file using any simple local web server. The application has no build step and will run directly in the browser.
+
+4.  **(Optional) Set up Backend & Production Environment**
+    *   For full functionality (including analysis, documentation generation, and login persistence), you need to set up backend secrets. This project is designed for serverless deployment (e.g., on Vercel or Netlify).
+    *   Please refer to `GUIDE.md` for complete instructions on setting up a production-ready environment with the necessary backend API keys and secrets.
 
 ## Contributing
 

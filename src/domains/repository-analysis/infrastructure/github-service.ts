@@ -1,3 +1,22 @@
+/**
+ * @file src/domains/repository-analysis/infrastructure/github-service.ts
+ * @version 0.1.0
+ * @description A service for interacting with the GitHub API to fetch repository data.
+ *
+ * @module RepositoryAnalysis.Infrastructure
+ *
+ * @summary This service contains functions to communicate with the GitHub API. It includes logic for parsing a GitHub URL to extract the owner and repo, and for fetching the entire file tree of a repository's default branch using the recursive tree API endpoint. It also handles API errors gracefully.
+ *
+ * @dependencies
+ * - ../domain
+ * - ../../../../shared/errors/api-error
+ *
+ * @outputs
+ * - Exports `parseGitHubUrl` and `fetchRepoTree` functions.
+ *
+ * @changelog
+ * - v0.1.0 (2025-09-08): File created and documented.
+ */
 import { GitHubFile, RepoInfo } from '../domain';
 import { ApiError } from '../../../../shared/errors/api-error';
 
