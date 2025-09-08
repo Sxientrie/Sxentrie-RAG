@@ -2,8 +2,12 @@
 name: Build and Deploy Vite Site to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs on pushes targeting the default branch (after a PR is merged)
   push:
+    branches: ["main"]
+
+  # Runs the 'build' job on pull requests targeting the main branch
+  pull_request:
     branches: ["main"]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -42,6 +46,8 @@ jobs:
 
   deploy:
     needs: build
+    # Only run on pushes to the main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
