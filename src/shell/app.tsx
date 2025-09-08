@@ -149,6 +149,7 @@ export const App: FC = () => {
     const [rightPanelView, setRightPanelView] = useState<'viewer' | 'settings'>('viewer');
     const { repoInfo, fileTree, repoUrl, isLoading, error, localStorageError, transientError, panelWidths } = state;
     const mainGridRef = useRef<HTMLDivElement>(null);
+    const animationFrameId = useRef<number | null>(null);
     const isRepoLoaded = !!repoInfo;
 
     useEffect(() => {
@@ -188,34 +189,41 @@ export const App: FC = () => {
     }, []);
 
     const handleResize = useCallback((splitterIndex: number) => (deltaX: number) => {
-        if (!mainGridRef.current) return;
-        
-        const grid = mainGridRef.current;
-        const totalWidth = grid.clientWidth;
-        const newWidths = [...panelWidths];
-        const totalFlex = newWidths.reduce((sum, val) => sum + val, 0);
-        let pixelWidths = newWidths.map(w => (w / totalFlex) * totalWidth);
-        const minPixelWidth = MIN_PANEL_WIDTH_PX; 
-
-        pixelWidths[splitterIndex] += deltaX;
-        pixelWidths[splitterIndex + 1] -= deltaX;
-
-        // Clamp to min width
-        if (pixelWidths[splitterIndex] < minPixelWidth) {
-            const adjustment = minPixelWidth - pixelWidths[splitterIndex];
-            pixelWidths[splitterIndex] = minPixelWidth;
-            pixelWidths[splitterIndex + 1] -= adjustment;
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
         }
-        if (pixelWidths[splitterIndex + 1] < minPixelWidth) {
-            const adjustment = minPixelWidth - pixelWidths[splitterIndex + 1];
-            pixelWidths[splitterIndex + 1] = minPixelWidth;
-            pixelWidths[splitterIndex] -= adjustment;
-        }
-
-        const newTotalWidth = pixelWidths.reduce((sum, val) => sum + val, 0);
-        const newFlexWidths = pixelWidths.map(w => (w / newTotalWidth) * totalFlex);
-
-        dispatch({ type: 'SET_PANEL_WIDTHS', payload: newFlexWidths });
+    
+        animationFrameId.current = requestAnimationFrame(() => {
+            if (!mainGridRef.current) return;
+            
+            const grid = mainGridRef.current;
+            const totalWidth = grid.clientWidth;
+            const newWidths = [...panelWidths];
+            const totalFlex = newWidths.reduce((sum, val) => sum + val, 0);
+            let pixelWidths = newWidths.map(w => (w / totalFlex) * totalWidth);
+            const minPixelWidth = MIN_PANEL_WIDTH_PX; 
+    
+            pixelWidths[splitterIndex] += deltaX;
+            pixelWidths[splitterIndex + 1] -= deltaX;
+    
+            // Clamp to min width
+            if (pixelWidths[splitterIndex] < minPixelWidth) {
+                const adjustment = minPixelWidth - pixelWidths[splitterIndex];
+                pixelWidths[splitterIndex] = minPixelWidth;
+                pixelWidths[splitterIndex + 1] -= adjustment;
+            }
+            if (pixelWidths[splitterIndex + 1] < minPixelWidth) {
+                const adjustment = minPixelWidth - pixelWidths[splitterIndex + 1];
+                pixelWidths[splitterIndex + 1] = minPixelWidth;
+                pixelWidths[splitterIndex] -= adjustment;
+            }
+    
+            const newTotalWidth = pixelWidths.reduce((sum, val) => sum + val, 0);
+            const newFlexWidths = pixelWidths.map(w => (w / newTotalWidth) * totalFlex);
+    
+            dispatch({ type: 'SET_PANEL_WIDTHS', payload: newFlexWidths });
+            animationFrameId.current = null;
+        });
     }, [panelWidths]);
 
     const handleResetLayout = useCallback(() => {

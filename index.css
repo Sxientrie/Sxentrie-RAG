@@ -84,6 +84,10 @@
     isolation: isolate; /* Create a new stacking context */
   }
   
+  .app-content-grid {
+    min-height: 0; /* Prevents grid from overflowing its container */
+  }
+  
   .splitter {
     background-color: transparent;
     cursor: col-resize;

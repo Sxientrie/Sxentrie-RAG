@@ -27,7 +27,7 @@
  */
 import React, { FC, useState, useEffect, useMemo, useCallback } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
-import { AnalysisConfig, RepoInfo, ANALYSIS_SCOPES, GEMINI_MODELS, ANALYSIS_MODES } from '../domain';
+import { AnalysisConfig, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_MODES, GEMINI_MODELS } from '../domain';
 import { FlaskConical, ChevronUp, ChevronDown, Download, TestTubeDiagonal, Loader2, RotateCw, BookText, X } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
