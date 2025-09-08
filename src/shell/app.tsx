@@ -33,7 +33,7 @@
  * - v0.1.0 (2025-09-08): File created and documented.
  */
 // FIX: Import CSSProperties to correctly type the style object.
-import React, { FC, useReducer, useEffect, useMemo, useCallback, useRef, useState, CSSProperties } from "react";
+import { FC, useReducer, useEffect, useMemo, useCallback, useRef, useState, CSSProperties } from "react";
 import { GitHubFile, RepoInfo } from "../domains/repository-analysis/domain";
 import { fetchRepoTree, parseGitHubUrl } from "../domains/repository-analysis/infrastructure/github-service";
 import { ApiError } from "../../shared/errors/api-error";
