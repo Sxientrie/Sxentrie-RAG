@@ -1,26 +1,29 @@
 import React, { FC, useState } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
 import { SlidersHorizontal, KeyRound, Save, X } from 'lucide-react';
-import { ICON_SIZE_SM, ICON_SIZE_MD, UI_COPY_SUCCESS_TIMEOUT_MS } from '../../../../shared/config';
-const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
+import {
+    ICON_SIZE_SM, ICON_SIZE_MD, UI_COPY_SUCCESS_TIMEOUT_MS, ApiKeyStorageKey, SaveStatusIdle, SaveStatusSaved,
+    LabelSettings, TitleCloseSettings, AriaLabelCloseSettings, LabelApiCredentials, TextApiKeyDescription,
+    PlaceholderGeminiApiKey, LabelSaved, LabelSave
+} from '../../../../shared/config';
 interface SettingsPanelProps {
   onClose: () => void;
 }
 export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE_KEY) || '');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(ApiKeyStorageKey) || '');
+  const [saveStatus, setSaveStatus] = useState<typeof SaveStatusIdle | typeof SaveStatusSaved>(SaveStatusIdle);
   const handleSave = () => {
-      localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), UI_COPY_SUCCESS_TIMEOUT_MS);
+      localStorage.setItem(ApiKeyStorageKey, apiKey);
+      setSaveStatus(SaveStatusSaved);
+      setTimeout(() => setSaveStatus(SaveStatusIdle), UI_COPY_SUCCESS_TIMEOUT_MS);
   };
-  const panelTitle = <><SlidersHorizontal size={ICON_SIZE_SM} /> Settings</>;
+  const panelTitle = <><SlidersHorizontal size={ICON_SIZE_SM} /> {LabelSettings}</>;
   const panelActions = (
     <button
       className="panel-action-btn"
       onClick={onClose}
-      title="Close Settings"
-      aria-label="Close settings panel"
+      title={TitleCloseSettings}
+      aria-label={AriaLabelCloseSettings}
     >
       <X size={ICON_SIZE_SM} />
     </button>
@@ -35,16 +38,16 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
             <div className="settings-section">
                 <h3 className="settings-section-title">
                     <KeyRound size={ICON_SIZE_MD} />
-                    <span>API Credentials</span>
+                    <span>{LabelApiCredentials}</span>
                 </h3>
                 <p className="settings-section-description">
-                    Provide your own Google Gemini API key. Your key is stored securely in your browser's local storage and is never sent to our servers.
+                    {TextApiKeyDescription}
                 </p>
                 <div className="input-group">
                     <input
                         type="password"
                         className="settings-input"
-                        placeholder="Enter your Gemini API Key..."
+                        placeholder={PlaceholderGeminiApiKey}
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                     />
@@ -54,7 +57,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
                         disabled={!apiKey.trim()}
                     >
                        <Save size={ICON_SIZE_SM} />
-                       {saveStatus === 'saved' ? 'Saved!' : 'Save'}
+                       {saveStatus === SaveStatusSaved ? LabelSaved : LabelSave}
                     </button>
                 </div>
             </div>

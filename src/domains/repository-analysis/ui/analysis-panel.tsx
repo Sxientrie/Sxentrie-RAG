@@ -4,16 +4,29 @@ import { AnalysisConfig, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_MODES, GEMINI_MODEL
 import { FlaskConical, ChevronUp, ChevronDown, Download, TestTubeDiagonal, Loader2, RotateCw, BookText, X } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
-import { ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_MD, UI_GAP_SM } from '../../../../shared/config';
+import {
+    ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_MD, UI_GAP_SM, MAX_GEMINI_FILE_COUNT, MARKDOWN_FILE_EXTENSION,
+    REPORT_FILE_MIMETYPE, ReportHeaderTemplate, ReportRepoUrlTemplate, ReportDateTemplate, ReportHorizontalRule,
+    ReportConfigHeader, ReportScopeFileTemplate, ReportScopeRepo, ReportModeTemplate, ReportCustomDirectivesTemplate,
+    ReportNoCustomDirectives, ReportOverviewHeader, ReportReviewHeader, ReportNoIssuesFound, ReportSummaryTableHeader,
+    ReportSummaryTableRowTemplate, ReportDetailsHeader, ReportFindingHeaderTemplate, ReportDetailsTableHeader,
+    ReportDetailsTableRowTemplate, ReportLineRangeTemplate, ReportNotApplicable, ReportQuoteTemplate,
+    ReportCodeBlockTemplate, ReportFileNameTemplate, FastScanPreviewTemplate, DeepScanPreviewTemplate,
+    ErrorUnknownDocGen, PlaceholderCustomInstructions, TitleEnableOnFileSelection, LabelEntireRepo,
+    LabelAnalyzesAllFiles, LabelSelectedFile, LabelFocusesOnActiveFile, LabelFastScan, LabelQuickOverview,
+    LabelDeepScan, LabelSlowerAnalysis, TitleGenerateDocs, LabelGenerating, LabelGenerateDocs, LabelAnalyzing,
+    LabelRunAnalysis, LabelInitializingDocEngine, LabelGeneratedDocumentation, TitleClearDocumentation, LabelClear,
+    LabelInitializingAnalysisEngine, LabelAnalysisResultsPlaceholder, LabelAnalysisHelpText, LabelLoadRepoToEnable,
+    TitleShowDismissedFindingsTemplate, AriaLabelRestoreDismissed, TitleDownloadReport, AriaLabelDownloadReport,
+    TitleShowConfig, TitleHideConfig
+} from '../../../../shared/config';
 import { useAnalysisRunner } from '../application/use-analysis-runner';
 import { AnalysisReportView } from './analysis-report-view';
 import { generateDocumentation } from '../infrastructure/gemini-service';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { MAX_GEMINI_FILE_COUNT, MARKDOWN_FILE_EXTENSION, REPORT_FILE_MIMETYPE } from '../../../../shared/config';
 import { collectAllFiles } from '../application/file-tree-utils';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
-const isApiKeyError = (msg: string | null): boolean => !!msg && msg.startsWith('Gemini API key not found');
 export const AnalysisPanel: FC = () => {
   const {
     state: { selectedFile, repoInfo, fileTree, analysisResults, analysisConfig, isAnalysisLoading, analysisProgressMessage, error, dismissedFindings, isDocLoading, docProgressMessage, generatedDoc, docError, totalAnalyzableFiles },
@@ -48,62 +61,63 @@ export const AnalysisPanel: FC = () => {
     dispatch({ type: 'SET_ANALYSIS_PREVIEW_PATHS', payload: paths });
   }, [analysisConfig, fileTree, selectedFile, isRepoLoaded, dispatch]);
   const fastScanPreviewText = useMemo(() => {
-    return `Analyzes the first ${Math.min(MAX_GEMINI_FILE_COUNT, totalAnalyzableFiles)} files.`;
+    return FastScanPreviewTemplate.replace('{0}', String(Math.min(MAX_GEMINI_FILE_COUNT, totalAnalyzableFiles)));
   }, [totalAnalyzableFiles]);
   const deepScanPreviewText = useMemo(() => {
-    return `Analyzes all ${totalAnalyzableFiles} supported files.`;
+    return DeepScanPreviewTemplate.replace('{0}', String(totalAnalyzableFiles));
   }, [totalAnalyzableFiles]);
   const handleDownloadReport = useCallback((): void => {
     if (!analysisResults || !repoInfo) return;
     const reportDate = new Date().toUTCString();
     const reportParts: string[] = [];
     const findings = analysisResults.review;
-    reportParts.push(`# Sxentrie Analysis Report for ${repoInfo.repo}\n\n`);
-    reportParts.push(`**Repository:** https://github.com/${repoInfo.owner}/${repoInfo.repo}\n`);
-    reportParts.push(`**Report Generated:** ${reportDate}\n\n`);
-    reportParts.push(`---\n`);
-    reportParts.push(`## Analysis Configuration\n\n`);
+    reportParts.push(ReportHeaderTemplate.replace('{0}', repoInfo.repo));
+    reportParts.push(ReportRepoUrlTemplate.replace('{0}', repoInfo.owner).replace('{1}', repoInfo.repo));
+    reportParts.push(ReportDateTemplate.replace('{0}', reportDate));
+    reportParts.push(ReportHorizontalRule);
+    reportParts.push(ReportConfigHeader);
     if (analysisConfig.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
-      reportParts.push(`*   **Scope:** Selected File (\`${selectedFile.path}\`)\n`);
+      reportParts.push(ReportScopeFileTemplate.replace('{0}', selectedFile.path));
     } else {
-      reportParts.push(`*   **Scope:** Entire Repository\n`);
+      reportParts.push(ReportScopeRepo);
     }
-    reportParts.push(`*   **Mode:** ${analysisConfig.mode.charAt(0).toUpperCase() + analysisConfig.mode.slice(1)} Scan\n`);
+    reportParts.push(ReportModeTemplate.replace('{0}', analysisConfig.mode.charAt(0).toUpperCase() + analysisConfig.mode.slice(1)));
     if (analysisConfig.customRules) {
-      reportParts.push(`*   **Custom Directives:** \n\t\`\`\`\n\t${analysisConfig.customRules}\n\t\`\`\`\n`);
+      reportParts.push(ReportCustomDirectivesTemplate.replace('{0}', analysisConfig.customRules));
     } else {
-      reportParts.push(`*   **Custom Directives:** None\n`);
+      reportParts.push(ReportNoCustomDirectives);
     }
-    reportParts.push(`\n---\n`);
-    reportParts.push(`## Project Overview\n\n`);
-    reportParts.push(`${analysisResults.overview}\n\n---\n\n`);
-    reportParts.push(`## Technical Review\n\n`);
+    reportParts.push(`\n${ReportHorizontalRule}`);
+    reportParts.push(ReportOverviewHeader);
+    reportParts.push(`${analysisResults.overview}\n\n${ReportHorizontalRule}\n`);
+    reportParts.push(ReportReviewHeader);
     if (findings.length === 0) {
-      reportParts.push(`> No specific technical issues were found based on the provided criteria.\n`);
+      reportParts.push(ReportNoIssuesFound);
     } else {
       const summaryTable = [
-        '| Severity | Finding | File |',
-        '|:---|:---|:---|',
-        ...findings.map(f => `| ${f.severity} | ${f.finding} | \`${f.fileName}\` |`).join('\n'),
+        ReportSummaryTableHeader,
+        ...findings.map(f => ReportSummaryTableRowTemplate.replace('{0}', f.severity).replace('{1}', f.finding).replace('{2}', f.fileName)).join('\n'),
       ].join('\n');
       reportParts.push(summaryTable);
-      reportParts.push(`\n\n---\n\n`);
-      reportParts.push('## Findings in Detail\n\n');
+      reportParts.push(`\n\n${ReportHorizontalRule}\n`);
+      reportParts.push(ReportDetailsHeader);
       findings.forEach((finding, index) => {
-        reportParts.push(`### ${index + 1}. ${finding.finding}\n\n`);
+        reportParts.push(ReportFindingHeaderTemplate.replace('{0}', String(index + 1)).replace('{1}', finding.finding));
         const detailsTable = [
-          '| Severity | File | Line(s) |',
-          '|:---|:---|:---|',
-          `| ${finding.severity} | \`${finding.fileName}\` | ${finding.startLine ? `${finding.startLine}-${finding.endLine}` : 'N/A'} |`
+          ReportDetailsTableHeader,
+          ReportDetailsTableRowTemplate
+            .replace('{0}', finding.severity)
+            .replace('{1}', finding.fileName)
+            .replace('{2}', finding.startLine ? ReportLineRangeTemplate.replace('{0}', String(finding.startLine)).replace('{1}', String(finding.endLine)) : ReportNotApplicable)
         ].join('\n');
         reportParts.push(detailsTable);
         reportParts.push('\n\n');
         finding.explanation.forEach(step => {
           if (step.type === 'text') {
-            reportParts.push(`> ${step.content}\n\n`);
+            reportParts.push(ReportQuoteTemplate.replace('{0}', step.content));
           } else if (step.type === 'code') {
             const language = getLanguage(finding.fileName);
-            reportParts.push(`\`\`\`${language}\n${step.content}\n\`\`\`\n\n`);
+            reportParts.push(ReportCodeBlockTemplate.replace('{0}', language).replace('{1}', step.content));
           }
         });
         reportParts.push(`\n`);
@@ -114,7 +128,7 @@ export const AnalysisPanel: FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${repoInfo.repo}-analysis-report${MARKDOWN_FILE_EXTENSION}`;
+    a.download = ReportFileNameTemplate.replace('{0}', repoInfo.repo).replace('{1}', MARKDOWN_FILE_EXTENSION);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -137,7 +151,7 @@ export const AnalysisPanel: FC = () => {
         if (err instanceof ApiKeyError && openSettingsPanel) {
           openSettingsPanel();
         }
-        const message = err instanceof Error ? err.message : "An unknown error occurred during documentation generation.";
+        const message = err instanceof Error ? err.message : ErrorUnknownDocGen;
         dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
         if (onError) onError(message);
     }
@@ -152,8 +166,8 @@ export const AnalysisPanel: FC = () => {
         <button
           className="panel-action-btn"
           onClick={() => dispatch({ type: 'RESET_DISMISSED_FINDINGS' })}
-          title={`Show all ${dismissedCount} dismissed findings`}
-          aria-label="Restore dismissed findings"
+          title={TitleShowDismissedFindingsTemplate.replace('{0}', String(dismissedCount))}
+          aria-label={AriaLabelRestoreDismissed}
         >
           <RotateCw size={ICON_SIZE_SM} />
         </button>
@@ -163,8 +177,8 @@ export const AnalysisPanel: FC = () => {
           className="panel-action-btn"
           onClick={handleDownloadReport}
           disabled={!analysisResults || !repoInfo}
-          title="Download analysis as Markdown file"
-          aria-label="Download analysis report"
+          title={TitleDownloadReport}
+          aria-label={AriaLabelDownloadReport}
         >
           <Download size={ICON_SIZE_SM} />
         </button>
@@ -172,8 +186,8 @@ export const AnalysisPanel: FC = () => {
       <button
         className="panel-toggle-btn"
         onClick={() => setIsConfigCollapsed(prev => !prev)}
-        title={isConfigCollapsed ? "Show configuration" : "Hide configuration"}
-        aria-label={isConfigCollapsed ? "Show configuration" : "Hide configuration"}
+        title={isConfigCollapsed ? TitleShowConfig : TitleHideConfig}
+        aria-label={isConfigCollapsed ? TitleShowConfig : TitleHideConfig}
         aria-expanded={!isConfigCollapsed}
       >
         <ConfigCollapseIcon size={ICON_SIZE_SM} />
@@ -190,7 +204,7 @@ export const AnalysisPanel: FC = () => {
         <div className="analysis-config">
           <div className="custom-rules">
             <textarea
-              placeholder='Guide Sxentrie with specific instructions, e.g., "Focus on security vulnerabilities" or "Ignore styling issues and check for performance bottlenecks."'
+              placeholder={PlaceholderCustomInstructions}
               value={analysisConfig.customRules}
               onChange={(e) => setConfig({ customRules: e.target.value })}
               disabled={isAnalysisLoading || isDocLoading}
@@ -210,11 +224,11 @@ export const AnalysisPanel: FC = () => {
                 />
                 <span className="custom-radio"></span>
                 <div className="radio-label-content">
-                  <span className="radio-label-title">Entire Repo</span>
-                  <span className="radio-label-description">Analyzes all supported files.</span>
+                  <span className="radio-label-title">{LabelEntireRepo}</span>
+                  <span className="radio-label-description">{LabelAnalyzesAllFiles}</span>
                 </div>
               </label>
-              <label htmlFor="scope-file" title={isFileAnalysisDisabled ? 'Select a text file to enable this option' : ''}>
+              <label htmlFor="scope-file" title={isFileAnalysisDisabled ? TitleEnableOnFileSelection : ''}>
                 <input
                   type="radio"
                   id="scope-file"
@@ -226,8 +240,8 @@ export const AnalysisPanel: FC = () => {
                 />
                 <span className="custom-radio"></span>
                 <div className="radio-label-content">
-                  <span className="radio-label-title">Selected File</span>
-                  <span className="radio-label-description">Focuses on the active file.</span>
+                  <span className="radio-label-title">{LabelSelectedFile}</span>
+                  <span className="radio-label-description">{LabelFocusesOnActiveFile}</span>
                 </div>
               </label>
             </div>
@@ -244,9 +258,9 @@ export const AnalysisPanel: FC = () => {
                 />
                 <span className="custom-radio"></span>
                 <div className="radio-label-content">
-                  <span className="radio-label-title">Fast Scan</span>
+                  <span className="radio-label-title">{LabelFastScan}</span>
                   <span className="radio-label-description">
-                    {isRepoLoaded ? fastScanPreviewText : "Quick overview for initial assessments."}
+                    {isRepoLoaded ? fastScanPreviewText : LabelQuickOverview}
                   </span>
                 </div>
               </label>
@@ -262,9 +276,9 @@ export const AnalysisPanel: FC = () => {
                 />
                 <span className="custom-radio"></span>
                 <div className="radio-label-content">
-                  <span className="radio-label-title">Deep Scan</span>
+                  <span className="radio-label-title">{LabelDeepScan}</span>
                   <span className="radio-label-description">
-                    {isRepoLoaded ? deepScanPreviewText : "Slower, more thorough analysis."}
+                    {isRepoLoaded ? deepScanPreviewText : LabelSlowerAnalysis}
                   </span>
                 </div>
               </label>
@@ -275,14 +289,14 @@ export const AnalysisPanel: FC = () => {
               className="btn btn-sm btn-outline"
               onClick={handleGenerateDocs}
               disabled={isAnalysisLoading || isDocLoading || !isRepoLoaded}
-              title="Generate documentation for the selected scope"
+              title={TitleGenerateDocs}
             >
               {isDocLoading ? (
                 <Loader2 size={ICON_SIZE_SM} className="animate-spin" />
               ) : (
                 <BookText size={ICON_SIZE_SM} />
               )}
-              {isDocLoading ? "Generating..." : "Generate Docs"}
+              {isDocLoading ? LabelGenerating : LabelGenerateDocs}
             </button>
             <button
               className="btn btn-sm btn-primary"
@@ -294,7 +308,7 @@ export const AnalysisPanel: FC = () => {
               ) : (
                 <FlaskConical size={ICON_SIZE_SM} />
               )}
-              {isAnalysisLoading ? "Analyzing..." : "Run Analysis"}
+              {isAnalysisLoading ? LabelAnalyzing : LabelRunAnalysis}
             </button>
           </div>
         </div>
@@ -302,7 +316,7 @@ export const AnalysisPanel: FC = () => {
       {isDocLoading && (
         <div className="thinking-progress">
           <p key={docProgressMessage} className="thinking-text">
-            {docProgressMessage || "Initializing documentation generation..."}
+            {docProgressMessage || LabelInitializingDocEngine}
           </p>
         </div>
       )}
@@ -310,10 +324,10 @@ export const AnalysisPanel: FC = () => {
         <div className="analysis-results">
             <div className="tabs">
                 <div className="tabs-nav">
-                  <button className="tab-btn active">Generated Documentation</button>
+                  <button className="tab-btn active">{LabelGeneratedDocumentation}</button>
                 </div>
-                 <button className="panel-action-btn" onClick={() => dispatch({ type: 'CLEAR_DOC' })} title="Clear documentation">
-                    <X size={ICON_SIZE_SM} /> Clear
+                 <button className="panel-action-btn" onClick={() => dispatch({ type: 'CLEAR_DOC' })} title={TitleClearDocumentation}>
+                    <X size={ICON_SIZE_SM} /> {LabelClear}
                 </button>
             </div>
             <div className="tab-content markdown-content" aria-live="polite">
@@ -326,7 +340,7 @@ export const AnalysisPanel: FC = () => {
           {isAnalysisLoading && (
             <div className="thinking-progress">
               <p key={analysisProgressMessage} className="thinking-text">
-                {analysisProgressMessage || "Initializing analysis..."}
+                {analysisProgressMessage || LabelInitializingAnalysisEngine}
               </p>
             </div>
           )}
@@ -335,13 +349,13 @@ export const AnalysisPanel: FC = () => {
               {isRepoLoaded ? (
                 <>
                   <TestTubeDiagonal size={ICON_SIZE_XL} strokeWidth={1} />
-                  <p style={{ maxWidth: '80%' }}>Your analysis results will appear here.</p>
+                  <p style={{ maxWidth: '80%' }}>{LabelAnalysisResultsPlaceholder}</p>
                   <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)', maxWidth: '80%' }}>
-                    Configure your analysis scope, add custom directives if you like, and click "Run Analysis" or "Generate Docs" to begin.
+                    {LabelAnalysisHelpText}
                   </p>
                 </>
               ) : (
-                <p>Load a repository to enable the Analysis Engine.</p>
+                <p>{LabelLoadRepoToEnable}</p>
               )}
             </div>
           )}

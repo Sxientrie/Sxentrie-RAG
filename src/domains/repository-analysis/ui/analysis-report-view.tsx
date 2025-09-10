@@ -8,17 +8,21 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
-import { ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD } from '../../../../shared/config';
+import {
+    ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD, CssFontFamilyMono, CssTransparent,
+    TitleDismissFinding, LabelProjectOverview, LabelTechnicalReview, LabelHiddenFindingsTemplate,
+    LabelNoIssuesFound, LabelHiddenFindingsCountTemplate
+} from '../../../../shared/config';
 const codeViewerStyle = {
   ...vscDarkPlus,
   'code[class*="language-"]': {
     ...vscDarkPlus['code[class*="language-"]'],
-    fontFamily: 'var(--font-family-mono)',
+    fontFamily: CssFontFamilyMono,
     fontSize: UI_FONT_SIZE_SM,
   },
   'pre[class*="language-"]': {
     ...vscDarkPlus['pre[class*="language-"]'],
-    backgroundColor: 'transparent',
+    backgroundColor: CssTransparent,
   }
 };
 interface FindingProps {
@@ -53,8 +57,8 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
         <button
           className="panel-action-btn"
           onClick={() => onDismiss(id)}
-          title="Dismiss this finding"
-          aria-label="Dismiss this finding"
+          title={TitleDismissFinding}
+          aria-label={TitleDismissFinding}
         >
           <X size={ICON_SIZE_SM} />
         </button>
@@ -104,10 +108,10 @@ export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResult
     <div className="analysis-results">
       <div className="tabs">
         <div className="tabs-nav">
-          <button className={`tab-btn ${activeTab === ANALYSIS_TABS.OVERVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.OVERVIEW)}>Project Overview</button>
+          <button className={`tab-btn ${activeTab === ANALYSIS_TABS.OVERVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.OVERVIEW)}>{LabelProjectOverview}</button>
           <button className={`tab-btn ${activeTab === ANALYSIS_TABS.REVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.REVIEW)}>
-            Technical Review ({visibleFindings.length})
-            {dismissedCount > 0 && <span style={{ marginLeft: '6px', opacity: 0.7 }}>({dismissedCount} hidden)</span>}
+            {LabelTechnicalReview} ({visibleFindings.length})
+            {dismissedCount > 0 && <span style={{ marginLeft: '6px', opacity: 0.7 }}>{LabelHiddenFindingsTemplate.replace('{0}', String(dismissedCount))}</span>}
           </button>
         </div>
       </div>
@@ -130,8 +134,8 @@ export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResult
           )) : (
             <div className="placeholder">
               <FileCheck2 size={ICON_SIZE_XL} strokeWidth={1} />
-              No specific technical issues found based on the criteria.
-              {dismissedCount > 0 && <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)' }}>({dismissedCount} findings are hidden.)</p>}
+              {LabelNoIssuesFound}
+              {dismissedCount > 0 && <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)' }}>{LabelHiddenFindingsCountTemplate.replace('{0}', String(dismissedCount))}</p>}
             </div>
           )}
         </div>

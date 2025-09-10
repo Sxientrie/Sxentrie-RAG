@@ -2,7 +2,10 @@ import React, { createContext, useReducer, useContext, ReactNode, FC, useCallbac
 import { AuthSession, User } from '../domain/user';
 import { authService } from '../infrastructure/auth-service';
 import { AppLoader } from '../../../shared/ui/app-loader';
-import { AUTH_POPUP_MONITOR_INTERVAL_MS, AUTH_SUCCESS_MESSAGE_TYPE, AUTH_ERROR_MESSAGE_TYPE } from '../../../../shared/config';
+import {
+    AUTH_POPUP_MONITOR_INTERVAL_MS, AUTH_SUCCESS_MESSAGE_TYPE, AUTH_ERROR_MESSAGE_TYPE, ApiUserPath,
+    ErrorPopupBlocked, ErrorAuthPopupFailed, ErrorLoginCancelled, ErrorUseAuthOutsideProvider
+} from '../../../../shared/config';
 type AuthAction =
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User } }
@@ -53,7 +56,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
   useEffect(() => {
     const checkSession = async () => {
         try {
-            const response = await fetch('/api/user');
+            const response = await fetch(ApiUserPath);
             if (response.ok) {
                 const user = await response.json();
                 dispatch({ type: 'LOGIN_SUCCESS', payload: { user } });
@@ -70,7 +73,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
     dispatch({ type: 'LOGIN_START' });
     const popup = authService.loginWithGitHub();
     if (!popup) {
-      dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Failed to open login popup. Please disable any popup blockers and try again.' } });
+      dispatch({ type: 'LOGIN_ERROR', payload: { error: ErrorPopupBlocked } });
       return;
     }
     let timer: number;
@@ -82,7 +85,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
       if (type === AUTH_SUCCESS_MESSAGE_TYPE && user) {
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user } });
       } else if (type === AUTH_ERROR_MESSAGE_TYPE) {
-        dispatch({ type: 'LOGIN_ERROR', payload: { error: error || 'Authentication failed in popup.' } });
+        dispatch({ type: 'LOGIN_ERROR', payload: { error: error || ErrorAuthPopupFailed } });
       }
       clearInterval(timer);
       window.removeEventListener('message', handleAuthMessage);
@@ -93,7 +96,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
         clearInterval(timer);
         window.removeEventListener('message', handleAuthMessage);
         if (isLoadingRef.current) {
-          dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Login cancelled.' }});
+          dispatch({ type: 'LOGIN_ERROR', payload: { error: ErrorLoginCancelled }});
         }
       }
     }, AUTH_POPUP_MONITOR_INTERVAL_MS);
@@ -119,7 +122,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error(ErrorUseAuthOutsideProvider);
   }
   return context;
 };

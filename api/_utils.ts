@@ -1,5 +1,8 @@
 import { GitHubFile, AnalysisConfig, ANALYSIS_MODES } from '../src/domains/repository-analysis/domain';
-import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE } from '../shared/config';
+import {
+    MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, FileContentSeparator,
+    FileHeaderTemplate, StreamTypeProgress
+} from '../shared/config';
 import { ThoughtStreamParser } from '../src/domains/repository-analysis/infrastructure/thought-stream-parser';
 export const fetchFileContents = async (files: GitHubFile[], config: AnalysisConfig): Promise<string> => {
   const filesToProcess = config.mode === ANALYSIS_MODES.FAST
@@ -16,14 +19,14 @@ export const fetchFileContents = async (files: GitHubFile[], config: AnalysisCon
         }
         const text = await res.text();
         const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + TRUNCATED_GEMINI_MESSAGE : text;
-        return `--- File: ${file.path} ---\n${cappedText}`;
+        return `${FileHeaderTemplate.replace('{0}', file.path)}${cappedText}`;
       } catch (e) {
         console.error(`Error fetching content for ${file.path}:`, e);
         return '';
       }
     })
   );
-  return fileContents.filter(c => c).join('\n\n');
+  return fileContents.filter(c => c).join(FileContentSeparator);
 };
 export async function processThoughtStream(
     geminiStream: AsyncGenerator<any>,
@@ -48,7 +51,8 @@ export async function processThoughtStream(
         }
         if (hasNewThought) {
             const progressMessage = parser.getLatestSummary();
-            controller.enqueue(encoder.encode(`{"type": "progress", "message": "${escapeJsonString(progressMessage)}"}\n`));
+            const progressJson = JSON.stringify({ type: StreamTypeProgress, message: progressMessage });
+            controller.enqueue(encoder.encode(`${progressJson}\n`));
         }
     }
     return accumulatedText;

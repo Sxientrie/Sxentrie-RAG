@@ -1,16 +1,24 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
-import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR, GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED } from "../../../../shared/config";
+import {
+    MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR,
+    GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
+    JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
+    SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
+    LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
+    LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
+    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessagePhase1, StreamMessagePhase2,
+    StreamMessageFinalizing, JsonResponseMimeType
+} from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
-const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
 const parseGeminiError = (e: unknown): Error => {
-    let friendlyMessage = 'An unknown error occurred with the Gemini API.';
+    let friendlyMessage = ErrorGeminiUnknown;
     if (e instanceof Error) {
         const rawMessage = e.message;
         try {
-            const jsonMatch = rawMessage.match(/\{.*\}/s);
+            const jsonMatch = rawMessage.match(JsonRegex);
             if (jsonMatch && jsonMatch[0]) {
                 const errorObj = JSON.parse(jsonMatch[0]);
                 if (errorObj?.error?.message) {
@@ -27,12 +35,12 @@ const parseGeminiError = (e: unknown): Error => {
     } else if (typeof e === 'string') {
         friendlyMessage = e;
     }
-    const cleanedMessage = friendlyMessage.replace(/\\n/g, ' ').trim();
-    if (cleanedMessage.toLowerCase().includes('api key not valid')) {
-        return new ApiKeyError('Your Gemini API key is not valid. Please check it in Settings.');
+    const cleanedMessage = friendlyMessage.replace(NewlineRegex, ' ').trim();
+    if (cleanedMessage.toLowerCase().includes(ApiKeyInvalid)) {
+        return new ApiKeyError(ErrorApiKeyInvalid);
     }
     if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
-        return new Error("An unexpected error occurred. Please check the console for details.");
+        return new Error(ErrorUnexpected);
     }
     return new Error(cleanedMessage);
 };
@@ -63,9 +71,9 @@ async function processStreamWithThoughts(
   return accumulatedText;
 }
 const getApiKey = (): string => {
-  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+  const apiKey = localStorage.getItem(ApiKeyStorageKey);
   if (!apiKey || !apiKey.trim()) {
-    throw new ApiKeyError("Gemini API key not found. Please set it in the Settings panel.");
+    throw new ApiKeyError(ErrorApiKeyNotFound);
   }
   return apiKey;
 };
@@ -96,14 +104,14 @@ const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string
         }
         const text = await res.text();
         const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + TRUNCATED_GEMINI_MESSAGE : text;
-        return `<source_code file_path="${file.path}">\n${cappedText}\n</source_code>`;
+        return SourceCodeTemplate.replace('{0}', file.path).replace('{1}', cappedText);
       } catch (e) {
         console.error(`Error fetching content for ${file.path}:`, e);
         return '';
       }
     })
   );
-  return fileContents.filter(c => c).join('\n\n');
+  return fileContents.filter(c => c).join(FileContentSeparator);
 };
 export const generateDocumentation = async (
   options: {
@@ -118,15 +126,15 @@ export const generateDocumentation = async (
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-    onProgress('Initializing documentation engine...');
+    onProgress(LabelInitializingDocEngine);
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
-        throw new Error("No valid files found for documentation generation based on the current scope.");
+        throw new Error(ErrorNoFilesForDocGen);
     }
-    onProgress('Fetching file contents for documentation...');
+    onProgress(LabelFetchingDocContents);
     const fileContentsString = await fetchFileContentsForAnalysis(files);
      if (!fileContentsString.trim()) {
-        throw new Error("Could not fetch content from any files. The repository might be empty or contain only unsupported file types.");
+        throw new Error(ErrorCouldNotFetchContent);
     }
     const documentationPrompt = `
 <DocumentationRequest>
@@ -147,7 +155,7 @@ export const generateDocumentation = async (
 </DocumentationRequest>
     `;
     const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
-    onProgress('Generating documentation...');
+    onProgress(LabelGeneratingDocumentation);
     const resultStream = await ai.models.generateContentStream({
         model: config.model,
         contents: documentationPrompt,
@@ -158,10 +166,10 @@ export const generateDocumentation = async (
         const chunkText = chunk.text;
         if (chunkText) {
             accumulatedDoc += chunkText;
-            onProgress(`Receiving documentation... (${(accumulatedDoc.length / 1024).toFixed(1)} KB)`);
+            onProgress(LabelReceivingDocumentationTemplate.replace('{0}', (accumulatedDoc.length / 1024).toFixed(1)));
         }
     }
-    onProgress('Finalizing documentation...');
+    onProgress(LabelFinalizingDocumentation);
     return accumulatedDoc;
   } catch (e) {
     throw parseGeminiError(e);
@@ -180,15 +188,15 @@ export const runCodeAnalysis = async (
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-    onProgress('Initializing analysis engine...');
+    onProgress(LabelInitializingAnalysisEngine);
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
-        throw new Error("No valid files found for analysis based on the current scope.");
+        throw new Error(ErrorNoFilesForAnalysis);
     }
-    onProgress('Fetching file contents for analysis...');
+    onProgress(LabelFetchingAnalysisContents);
     const fileContentsString = await fetchFileContentsForAnalysis(files);
     if (!fileContentsString.trim()) {
-        throw new Error("Could not fetch content from any files. The repository might be empty or contain only unsupported file types.");
+        throw new Error(ErrorCouldNotFetchContent);
     }
     const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
     const overviewPrompt = isSingleFile
@@ -295,7 +303,7 @@ The repository follows a classic **Client-Server architecture** with a monolithi
     };
     const reviewModelConfig = {
       temperature: GEMINI_TEMPERATURE_LOW,
-      responseMimeType: "application/json",
+      responseMimeType: JsonResponseMimeType,
       responseSchema: reviewSchema,
       thinkingConfig: {
         thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
@@ -303,17 +311,17 @@ The repository follows a classic **Client-Server architecture** with a monolithi
       },
     };
     const parser = new ThoughtStreamParser();
-    onProgress('Phase 1/2: Generating Project Overview...');
+    onProgress(StreamMessagePhase1);
     const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
     const overviewText = await processStreamWithThoughts(overviewStream, parser, onProgress);
-    onProgress('Phase 2/2: Performing Technical Review...');
+    onProgress(StreamMessagePhase2);
     const reviewStream = await ai.models.generateContentStream({
       model: config.model,
       contents: reviewPrompt,
       config: reviewModelConfig
     });
     const reviewText = await processStreamWithThoughts(reviewStream, parser, onProgress);
-    onProgress('Finalizing analysis...');
+    onProgress(StreamMessageFinalizing);
     const reviewJson = JSON.parse(reviewText.trim());
     const finalResult = { overview: overviewText, review: reviewJson };
     return finalResult;

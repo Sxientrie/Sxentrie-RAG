@@ -1,6 +1,6 @@
 import React, { FC, ReactNode } from 'react';
 import { PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
-import { ICON_SIZE_SM } from '../../shared/config';
+import { ICON_SIZE_SM, TitleExpandPanel, TitleCollapsePanel } from '../../shared/config';
 interface PanelProps {
   children: ReactNode;
   className?: string;
@@ -26,8 +26,8 @@ export const Panel: FC<PanelProps> = ({ children, className, title, actions, isC
             <button
               className="panel-toggle-btn"
               onClick={onToggleCollapse}
-              title={isCollapsed ? "Expand Panel" : "Collapse Panel"}
-              aria-label={isCollapsed ? "Expand Panel" : "Collapse Panel"}
+              title={isCollapsed ? TitleExpandPanel : TitleCollapsePanel}
+              aria-label={isCollapsed ? TitleExpandPanel : TitleCollapsePanel}
               aria-expanded={!isCollapsed}
             >
               <CollapseIcon size={ICON_SIZE_SM} />

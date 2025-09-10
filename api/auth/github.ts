@@ -1,6 +1,11 @@
 import { SignJWT } from 'jose';
 import { JWT_EXPIRATION_TIME, JWT_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from '../_constants';
-import { HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR } from '../../shared/config';
+import {
+    HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorNoCodeProvided,
+    ErrorJwtSecretNotSet, GitHubAccessTokenUrl, HttpMethodPost, HttpHeaderContentType, HttpHeaderAccept,
+    JsonResponseMimeType, GitHubUserApiUrl, HttpHeaderAuthorization, AuthBearerPrefix, JwtAlgorithmHS256,
+    CookieAttributes, ErrorAuthFailed, HttpHeaderContentTypeJsonUtf8
+} from '../../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ code: string }>;
 }
@@ -21,20 +26,20 @@ interface GitHubUserResponse {
 export default async function handler(request: ServerlessRequest) {
   const { code } = await request.json();
   if (!code) {
-    return new Response(JSON.stringify({ error: 'No code provided.' }), { status: HTTP_STATUS_BAD_REQUEST });
+    return new Response(JSON.stringify({ error: ErrorNoCodeProvided }), { status: HTTP_STATUS_BAD_REQUEST });
   }
   const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
   const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
   const JWT_SECRET = process.env.JWT_SECRET;
   if (!JWT_SECRET) {
-    return new Response(JSON.stringify({ error: 'JWT_SECRET environment variable is not set.' }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
+    return new Response(JSON.stringify({ error: ErrorJwtSecretNotSet }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
   try {
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
+    const tokenResponse = await fetch(GitHubAccessTokenUrl, {
+      method: HttpMethodPost,
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        [HttpHeaderContentType]: JsonResponseMimeType,
+        [HttpHeaderAccept]: JsonResponseMimeType,
       },
       body: JSON.stringify({
         client_id: GITHUB_CLIENT_ID,
@@ -47,9 +52,9 @@ export default async function handler(request: ServerlessRequest) {
       throw new Error(tokenData.error_description);
     }
     const accessToken = tokenData.access_token;
-    const userResponse = await fetch('https://api.github.com/user', {
+    const userResponse = await fetch(GitHubUserApiUrl, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        [HttpHeaderAuthorization]: `${AuthBearerPrefix}${accessToken}`,
       },
     });
     const userData: GitHubUserResponse = await userResponse.json();
@@ -61,20 +66,20 @@ export default async function handler(request: ServerlessRequest) {
     };
     const secret = new TextEncoder().encode(JWT_SECRET);
     const jwt = await new SignJWT(userProfile)
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: JwtAlgorithmHS256 })
       .setIssuedAt()
       .setExpirationTime(JWT_EXPIRATION_TIME)
       .sign(secret);
-    const cookie = `${SESSION_COOKIE_NAME}=${jwt}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SECONDS}`;
+    const cookie = `${SESSION_COOKIE_NAME}=${jwt}; ${CookieAttributes}${JWT_MAX_AGE_SECONDS}`;
     return new Response(JSON.stringify(userProfile), {
       status: HTTP_STATUS_OK,
       headers: {
-        'Content-Type': 'application/json',
+        [HttpHeaderContentType]: JsonResponseMimeType,
         'Set-Cookie': cookie,
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Authentication failed.';
+    const message = error instanceof Error ? error.message : ErrorAuthFailed;
     return new Response(JSON.stringify({ error: message }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
 }

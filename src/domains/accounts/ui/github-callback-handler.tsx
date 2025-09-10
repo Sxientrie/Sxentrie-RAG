@@ -1,5 +1,8 @@
 import React, { FC, useEffect } from 'react';
-import { AUTH_SUCCESS_MESSAGE_TYPE, AUTH_ERROR_MESSAGE_TYPE } from '../../../../shared/config';
+import {
+    AUTH_SUCCESS_MESSAGE_TYPE, AUTH_ERROR_MESSAGE_TYPE, ApiAuthGithubPath, HttpMethodPost,
+    HttpHeaderContentType, JsonResponseMimeType, ErrorFailedToAuthenticate, ErrorUnknown, ErrorNoCodeFromGitHub
+} from '../../../../shared/config';
 export const GitHubCallbackHandler: FC = () => {
   useEffect(() => {
     const handleAuthentication = async () => {
@@ -8,22 +11,22 @@ export const GitHubCallbackHandler: FC = () => {
       if (window.opener) {
         if (code) {
           try {
-            const response = await fetch('/api/auth/github', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const response = await fetch(ApiAuthGithubPath, {
+              method: HttpMethodPost,
+              headers: { [HttpHeaderContentType]: JsonResponseMimeType },
               body: JSON.stringify({ code }),
             });
             const data = await response.json();
             if (!response.ok) {
-              throw new Error(data.error || 'Failed to authenticate.');
+              throw new Error(data.error || ErrorFailedToAuthenticate);
             }
             window.opener.postMessage({ type: AUTH_SUCCESS_MESSAGE_TYPE, user: data }, window.location.origin);
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+            const message = error instanceof Error ? error.message : ErrorUnknown;
             window.opener.postMessage({ type: AUTH_ERROR_MESSAGE_TYPE, error: message }, window.location.origin);
           }
         } else {
-          const error = params.get('error_description') || "Authentication failed: No code received from GitHub.";
+          const error = params.get('error_description') || ErrorNoCodeFromGitHub;
           window.opener.postMessage({ type: AUTH_ERROR_MESSAGE_TYPE, error }, window.location.origin);
         }
         window.close();

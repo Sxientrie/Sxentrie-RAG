@@ -1,7 +1,11 @@
+import {
+    LabelProcessing, BoldedStatementRegex, LastListItemRegex, ListItemPrefixRegex, SentenceEndRegex,
+    SentenceSplitRegex
+} from '../../../../shared/config';
 export class ThoughtStreamParser {
   private buffer: string = "";
   private latestSummary: string | null = null;
-  private readonly GENERIC_FALLBACK = "Processing...";
+  private readonly GENERIC_FALLBACK = LabelProcessing;
   public addChunk(text: string): void {
     this.buffer += text;
     this._parseBuffer();
@@ -19,7 +23,7 @@ export class ThoughtStreamParser {
     }
   }
   private _extractLastBoldedStatement(): string | null {
-    const matches = this.buffer.match(/\*\*([^*]+)\*\*/g);
+    const matches = this.buffer.match(BoldedStatementRegex);
     if (!matches) {
       return null;
     }
@@ -27,18 +31,18 @@ export class ThoughtStreamParser {
     return lastMatch.substring(2, lastMatch.length - 2);
   }
   private _extractLastCompleteListItem(): string | null {
-    const matches = this.buffer.match(/^[-*\d+\.]\s*(.*)\n/gm);
+    const matches = this.buffer.match(LastListItemRegex);
     if (!matches) {
       return null;
     }
     const lastMatch = matches[matches.length - 1].trim();
-    return lastMatch.replace(/^[-*\d+\.]\s*/, "");
+    return lastMatch.replace(ListItemPrefixRegex, "");
   }
   private _extractLastCompleteSentence(): string | null {
-    if (!/[.!?]$/.test(this.buffer.trim())) {
+    if (!SentenceEndRegex.test(this.buffer.trim())) {
       return null;
     }
-    const sentences = this.buffer.trim().split(/(?<=[.!?])\s+/);
+    const sentences = this.buffer.trim().split(SentenceSplitRegex);
     return sentences.length > 0 ? sentences[sentences.length - 1] : null;
   }
 }

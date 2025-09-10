@@ -1,6 +1,7 @@
 import {
     AUTH_CALLBACK_PATH, GITHUB_LOGIN_POPUP_HEIGHT, GITHUB_LOGIN_POPUP_NAME, GITHUB_LOGIN_POPUP_WIDTH, GITHUB_OAUTH_SCOPE,
-    GitHubClientIdPlaceholder, ErrorGitHubClientIdNotSet, DevErrorGitHubClientIdNotSet, GitHubAuthUrl, ApiLogoutPath
+    GitHubClientIdPlaceholder, ErrorGitHubClientIdNotSet, DevErrorGitHubClientIdNotSet, GitHubAuthUrl, ApiLogoutPath,
+    GitHubLoginPopupFeaturesTemplate, HttpMethodPost
 } from '../../../../shared/config';
 const GITHUB_CLIENT_ID = GitHubClientIdPlaceholder;
 const REDIRECT_URI = window.location.origin + AUTH_CALLBACK_PATH;
@@ -15,10 +16,15 @@ const loginWithGitHub = (): Window | null => {
   const height = GITHUB_LOGIN_POPUP_HEIGHT;
   const left = (window.innerWidth / 2) - (width / 2);
   const top = (window.innerHeight / 2) - (height / 2);
-  return window.open(authUrl, GITHUB_LOGIN_POPUP_NAME, `width=${width},height=${height},top=${top},left=${left}`);
+  const features = GitHubLoginPopupFeaturesTemplate
+    .replace('{0}', String(width))
+    .replace('{1}', String(height))
+    .replace('{2}', String(top))
+    .replace('{3}', String(left));
+  return window.open(authUrl, GITHUB_LOGIN_POPUP_NAME, features);
 };
 const logout = async (): Promise<void> => {
-  await fetch(ApiLogoutPath, { method: 'POST' });
+  await fetch(ApiLogoutPath, { method: HttpMethodPost });
 };
 export const authService = {
   loginWithGitHub,
