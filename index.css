@@ -1,19 +1,17 @@
 :root {
     --background: oklch(15.7% 0 0);
     --surface: oklch(20% 0 0);
-    --primary: oklch(65% 0.12 145); /* Muted shadcn-style green */
+    --primary: oklch(65% 0.12 145);
     --primary-foreground: oklch(15.7% 0 0);
     --foreground: oklch(95% 0 0);
     --muted-foreground: oklch(65% 0 0);
     --error: oklch(58% 0.12 12);
     --border: oklch(28% 0 0);
-    
     --font-family-sans: 'IBM Plex Sans', sans-serif;
     --font-family-mono: 'IBM Plex Mono', monospace;
-    --radius: 0.5rem; /* shadcn-style border radius */
-    --radius-pill: 999px; /* For fully rounded buttons */
+    --radius: 0.5rem;
+    --radius-pill: 999px;
   }
-  /* Reset and base styles */
   * { box-sizing: border-box; }
   html {
     background-color: var(--background);
@@ -24,16 +22,12 @@
     margin: 0;
     height: 100vh;
     overflow: hidden;
-    position: relative; /* Needed for positioning pseudo-elements */
+    position: relative;
   }
-  /* Custom focus-visible styles for accessibility and aesthetics */
   :focus-visible {
-    outline: 1px solid oklch(95% 0 0 / 0.6); /* Thinner, less vibrant outline */
+    outline: 1px solid oklch(95% 0 0 / 0.6);
     outline-offset: 2px;
   }
-
-
-  /* Subtle background glow effect */
   body::before,
   body::after {
     content: '';
@@ -44,25 +38,19 @@
     border-radius: 50%;
     filter: blur(150px);
   }
-
-  /* Left glow */
   body::before {
     top: 50%;
     left: 0;
     transform: translate(-50%, -50%);
     background: radial-gradient(circle, oklch(65% 0.12 145 / 0.25) 0%, transparent 60%);
   }
-
-  /* Right glow */
   body::after {
     top: 50%;
     right: 0;
     transform: translate(50%, -50%);
     background: radial-gradient(circle, oklch(65% 0.12 145 / 0.25) 0%, transparent 60%);
   }
-
   #root { display: contents; }
-  
   .visually-hidden {
     position: absolute;
     width: 1px;
@@ -74,20 +62,16 @@
     white-space: nowrap;
     border: 0;
   }
-
-  /* Main App Layout */
   .main-app {
     display: grid;
     grid-template-rows: auto 1fr auto;
     height: 100vh;
     padding: 8px;
-    isolation: isolate; /* Create a new stacking context */
+    isolation: isolate;
   }
-  
   .app-content-grid {
-    min-height: 0; /* Prevents grid from overflowing its container */
+    min-height: 0;
   }
-  
   .splitter {
     background-color: transparent;
     cursor: col-resize;
@@ -96,7 +80,6 @@
   .splitter:hover {
     background-color: oklch(65% 0.12 145 / 0.3);
   }
-  
   .page-header {
     grid-column: 1 / -1;
     display: flex;
@@ -116,11 +99,11 @@
   .page-header h1 {
     margin: 0;
     font-size: 12px;
-    font-weight: 400; /* Lighter base weight for the tagline */
+    font-weight: 400;
     color: var(--foreground);
   }
   .page-header h1 strong {
-    font-weight: 500; /* Restore medium weight for the brand name */
+    font-weight: 500;
   }
   .page-header h1 code {
     font-family: var(--font-family-mono);
@@ -131,13 +114,11 @@
     border: 1px solid var(--border);
     vertical-align: baseline;
   }
-
   .header-actions {
     display: flex;
     align-items: center;
     gap: 0.75rem;
   }
-
   .page-footer {
     grid-column: 1 / -1;
     display: flex;
@@ -148,14 +129,12 @@
     height: 32px;
     margin-top: 8px;
   }
-  
   .footer-left-content {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
   }
-  
   .copyright-text {
     margin: 0;
     font-size: 0.75rem;
@@ -164,7 +143,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .footer-action-btn {
     background: none;
     border: none;
@@ -184,7 +162,6 @@
   .settings-btn {
     border: 1px solid var(--border);
   }
-  
   .panel {
     background-color: var(--surface);
     border-radius: var(--radius);
@@ -195,9 +172,8 @@
     min-width: 250px;
   }
   .panel.collapsed {
-    min-width: 0; /* Override min-width for collapsed panel to allow it to shrink */
+    min-width: 0;
   }
-  
   .panel-header {
     display: flex;
     justify-content: space-between;
@@ -247,7 +223,6 @@
   .panel-toggle-btn:hover {
     background-color: oklch(100% 0 0 / 0.1); color: var(--foreground);
   }
-
   .panel-content {
     padding: 0.75rem 1rem;
     flex-grow: 1;
@@ -256,11 +231,9 @@
     display: flex;
     flex-direction: column;
   }
-  
   .panel-title[aria-hidden="true"] {
     display: none;
   }
-
   .placeholder {
     display: flex;
     flex-direction: column;
@@ -281,31 +254,26 @@
     white-space: pre-wrap;
     font-family: var(--font-family-mono);
   }
-
   .warning-message {
     padding: 0.5rem;
     text-align: center;
     font-size: 0.9rem;
     color: var(--muted-foreground);
   }
-
-  /* Error Boundary Fallback */
   .error-boundary-fallback {
     height: 100%;
     width: 100%;
-    display: flex; /* Override panel's flex-direction */
+    display: flex;
     justify-content: center;
     align-items: center;
   }
   .error-boundary-fallback .placeholder {
-    height: auto; /* Don't take full height within the boundary panel */
+    height: auto;
   }
   .error-boundary-title {
     margin: 0;
     color: var(--foreground);
   }
-
-  /* Loading spinner */
   .loading-spinner, .loading-spinner:after { border-radius: 50%; width: 2.5em; height: 2.5em; }
   .loading-spinner {
     margin: 60px auto; font-size: 10px; position: relative; text-indent: -9999em;
@@ -319,12 +287,9 @@
     animation: spin 1.1s infinite linear;
   }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  
   .animate-spin {
     animation: spin 1s linear infinite;
   }
-  
-  /* Markdown specific styles */
   .markdown-content { font-size: 0.95rem; }
   .markdown-content h1, .markdown-content h2, .markdown-content h3 {
     border-bottom: 1px solid var(--border);
@@ -361,8 +326,6 @@
     border-radius: var(--radius);
     background-color: var(--background) !important;
   }
-
-  /* Scrollbar */
   * {
     scrollbar-width: thin;
     scrollbar-color: oklch(41% 0 0) transparent;
@@ -371,16 +334,14 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: oklch(41% 0 0); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: oklch(54% 0 0); }
-  
-  /* === File Tree Panel Sticky Search === */
   .panel.file-tree-panel .panel-content {
     padding: 0;
   }
   .file-tree-container {
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Make container fill parent flex space */
-    min-height: 0; /* Allow container to shrink and enable child scrolling */
+    flex-grow: 1;
+    min-height: 0;
   }
   .file-search-area {
     padding: 0.75rem 1rem;
@@ -390,14 +351,11 @@
   .file-tree-scroll-area {
     flex-grow: 1;
     overflow-y: auto;
-    min-height: 0; /* Fix for flex scrolling */
+    min-height: 0;
     padding: 0.75rem 1rem;
   }
-
-  /* File Tree Search */
   .file-search-input-wrapper {
     position: relative;
-    /* margin-bottom is removed as parent handles spacing now */
   }
   .file-search-input-wrapper > svg {
     position: absolute;
@@ -424,7 +382,6 @@
   }
   .file-search-input::placeholder { color: var(--muted-foreground); opacity: 0.7; }
   .file-search-input:disabled { background-color: var(--surface); cursor: not-allowed; }
-
   .file-search-clear-btn {
     position: absolute;
     right: 10px;
@@ -449,9 +406,6 @@
   .file-search-input-wrapper:has(.file-search-clear-btn) .file-search-input {
     padding-right: 2.5rem;
   }
-
-
-  /* === RepoLoader styles === */
   .repo-loader-form {
     display: flex;
     align-items: center;
@@ -470,8 +424,6 @@
     transition: padding-right 0.2s ease;
   }
   .repo-loader-form input::placeholder { color: var(--muted-foreground); opacity: 0.7; }
-  
-  /* === FileTree styles === */
   ul.file-tree { list-style: none; padding-left: 0; margin: 0; }
   .file-tree li { padding: 0; }
   .tree-item {
@@ -489,7 +441,6 @@
     color: oklch(75% 0.1 145);
     transition: color 0.2s ease;
   }
-  /* Ensure selected style takes precedence over analysis-target style */
   .tree-item.selected > span,
   .tree-item.selected > svg {
     color: var(--primary);
@@ -499,8 +450,6 @@
   .tree-item-spacer { display: inline-block; width: 12px; flex-shrink: 0; }
   .tree-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; }
   .tree-indentation { padding-left: 20px; list-style: none; }
-
-  /* === FileViewer styles === */
   .file-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
   .file-action-btn {
     background: none; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px;
@@ -533,8 +482,6 @@
     border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
     color: var(--primary);
   }
-
-  /* === AnalysisPanel styles === */
   .analysis-panel .panel-content { gap: 0.75rem; }
   .panel-action-btn {
     background: none; border: none; color: var(--muted-foreground); cursor: pointer; padding: 4px; border-radius: var(--radius);
@@ -556,7 +503,6 @@
     font-family: var(--font-family-sans); font-size: 0.9rem;
   }
   .analysis-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
-  
   .radio-group {
     display: flex;
     flex-direction: column;
@@ -609,9 +555,7 @@
     font-size: 0.8rem;
     color: var(--muted-foreground);
   }
-  
   .placeholder-top { flex-grow: 1; height: auto; justify-content: flex-start; margin-top: 0.75rem; padding-top: 1rem; }
-  
   .thinking-progress {
     display: flex;
     flex-direction: column;
@@ -633,7 +577,6 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  
   .analysis-results { display: flex; flex-direction: column; flex-grow: 1; min-height: 0; }
   .analysis-results .tabs {
     display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
@@ -694,13 +637,11 @@
   .code-block-wrapper {
     border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background-color: var(--background);
   }
-  
   .line-highlight {
     background-color: oklch(65% 0.12 145 / 0.15);
     display: block;
     width: 100%;
   }
-
   .gutter-marker {
     position: relative;
   }
@@ -716,8 +657,6 @@
     background-color: var(--primary);
     box-shadow: 0 0 6px var(--primary);
   }
-
-  /* === Severity Badge Styles === */
   .severity-badge {
     display: inline-block;
     padding: 0.15em 0.6em;
@@ -738,20 +677,19 @@
   }
   .severity-high {
     color: oklch(95% 0 0);
-    background-color: oklch(65% 0.15 35 / 0.7); /* Orange */
+    background-color: oklch(65% 0.15 35 / 0.7);
     border: 1px solid oklch(65% 0.15 35);
   }
   .severity-medium {
     color: oklch(95% 0 0);
-    background-color: oklch(75% 0.15 85 / 0.7); /* Yellow */
+    background-color: oklch(75% 0.15 85 / 0.7);
     border: 1px solid oklch(75% 0.15 85);
   }
   .severity-low {
     color: oklch(95% 0 0);
-    background-color: oklch(65% 0.12 145 / 0.5); /* Muted Green */
+    background-color: oklch(65% 0.12 145 / 0.5);
     border: 1px solid oklch(65% 0.12 145);
   }
-  
   .footer-error-message {
     display: flex;
     align-items: center;
@@ -765,33 +703,27 @@
     max-width: 50%;
     animation: fadeIn 0.3s ease-out;
   }
-  
   .footer-error-message .error-icon {
     color: var(--error);
     flex-shrink: 0;
   }
-  
   .footer-error-message .error-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .footer-error-message .clear-error-btn {
     color: var(--muted-foreground);
   }
-  
   .footer-error-message .clear-error-btn:hover {
     color: var(--foreground);
     background-color: oklch(100% 0 0 / 0.1);
   }
-
-  /* === Button Styles (shadcn/ui inspired) === */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px; /* Space between icon and text */
+    gap: 8px;
     font-weight: 500;
     white-space: nowrap;
     border-radius: var(--radius);
@@ -808,21 +740,16 @@
     cursor: not-allowed !important;
     opacity: 0.6 !important;
   }
-
-  /* Sizes */
   .btn-sm {
     height: 32px;
     padding: 0 0.75rem;
     font-size: 0.875rem;
   }
-  
   .btn-xs {
     height: 30px;
     padding: 0 0.6rem;
     font-size: 0.8rem;
   }
-
-  /* Variants */
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-foreground);
@@ -837,7 +764,6 @@
     color: oklch(48% 0 0) !important;
     border-color: oklch(28% 0 0) !important;
   }
-
   .btn-outline {
     background-color: transparent;
     color: var(--foreground);
@@ -848,7 +774,6 @@
     border-color: var(--primary);
     color: var(--primary);
   }
-
   .user-avatar {
     width: 20px;
     height: 20px;
@@ -859,8 +784,6 @@
     font-size: 0.875rem;
     font-weight: 500;
   }
-
-  /* === GitHub Callback Page === */
   .full-page-centered {
     display: flex;
     flex-direction: column;
@@ -873,8 +796,6 @@
   .full-page-centered p {
     color: var(--muted-foreground);
   }
-
-  /* === SettingsPanel styles === */
   .settings-panel .panel-content {
     display: flex;
     flex-direction: column;
@@ -915,47 +836,38 @@
     outline: none;
     border-color: var(--primary);
   }
-
-/* === Responsive Design for Mobile & Tablet === */
 @media (max-width: 1024px) {
   .header-tagline {
     display: none;
   }
-  
   .page-header {
     height: auto;
     padding-top: 8px;
     padding-bottom: 8px;
     flex-wrap: wrap;
   }
-  
   .header-actions {
     flex-grow: 1;
     min-width: 100%;
     order: 3;
   }
-
   .repo-loader-form {
     flex-grow: 1;
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-
   .repo-loader-form input {
     width: 100%;
     flex-basis: 100%;
     order: 1;
   }
-
   .repo-loader-form button {
     flex-grow: 1;
     order: 2;
   }
-
   .app-content-grid {
       overflow-y: auto;
   }
-
   .panel {
       min-height: 40vh;
   }
