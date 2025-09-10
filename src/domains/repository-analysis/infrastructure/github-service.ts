@@ -1,32 +1,11 @@
-/**
- * @file src/domains/repository-analysis/infrastructure/github-service.ts
- * @version 0.1.0
- * @description A service for interacting with the GitHub API to fetch repository data.
- *
- * @module RepositoryAnalysis.Infrastructure
- *
- * @summary This service contains functions to communicate with the GitHub API. It includes logic for parsing a GitHub URL to extract the owner and repo, and for fetching the entire file tree of a repository's default branch using the recursive tree API endpoint. It also handles API errors gracefully.
- *
- * @dependencies
- * - ../domain
- * - ../../../../shared/errors/api-error
- *
- * @outputs
- * - Exports `parseGitHubUrl` and `fetchRepoTree` functions.
- *
- * @changelog
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import { GitHubFile, RepoInfo } from '../domain';
 import { ApiError } from '../../../../shared/errors/api-error';
-
 interface GitHubTreeItem {
   path: string;
   type: 'blob' | 'tree' | 'commit';
   sha: string;
   url: string;
 }
-
 interface FileTreeNode {
   name: string;
   path: string;
@@ -34,8 +13,6 @@ interface FileTreeNode {
   download_url: string | null;
   content: { [key: string]: FileTreeNode };
 }
-
-
 export const parseGitHubUrl = (url: string): RepoInfo | null => {
   const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (match) {
@@ -43,7 +20,6 @@ export const parseGitHubUrl = (url: string): RepoInfo | null => {
   }
   return null;
 };
-
 export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
   const repoDetailsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
   if (!repoDetailsResponse.ok) {
@@ -53,11 +29,9 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
   }
   const repoDetails = await repoDetailsResponse.json();
   const defaultBranch = repoDetails.default_branch;
-
   if (!defaultBranch) {
     throw new ApiError('Could not determine the default branch for this repository.');
   }
-
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`);
   if (!response.ok) {
     if (response.status === 404) throw new ApiError(`Default branch '${defaultBranch}' not found or repository is empty.`);
@@ -65,15 +39,12 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
     throw new ApiError(`GitHub API Error: ${response.statusText}`);
   }
   const { tree } = await response.json();
-
   const buildFileTree = (files: GitHubTreeItem[]): GitHubFile[] => {
     const root: { [key: string]: FileTreeNode } = {};
     files.forEach(file => {
       if (file.type !== 'blob' && file.type !== 'tree') return;
-
       let currentLevel: { [key: string]: FileTreeNode } = root;
       const pathParts = file.path.split('/');
-
       pathParts.forEach((part, index) => {
         if (!currentLevel[part]) {
           const isLastPart = index === pathParts.length - 1;
@@ -90,7 +61,6 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
         }
       });
     });
-
     const toArray = (nodes: { [key: string]: FileTreeNode }): GitHubFile[] => {
       return Object.values(nodes).map(node => ({
         ...node,
@@ -99,6 +69,5 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
     };
     return toArray(root);
   };
-
   return buildFileTree(tree);
 };

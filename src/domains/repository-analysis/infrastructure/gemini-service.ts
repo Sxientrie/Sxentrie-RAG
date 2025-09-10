@@ -1,33 +1,3 @@
-/**
- * @file src/domains/repository-analysis/infrastructure/gemini-service.ts
- * @version 1.1.0
- * @description A service responsible for interacting with the Gemini API on the client-side to perform code analysis and documentation generation.
- *
- * @module RepositoryAnalysis.Infrastructure
- *
- * @summary This service orchestrates client-side calls to the Google Gemini API. It retrieves the user-provided API key from local storage, fetches file contents, constructs detailed prompts, and manages the streaming responses to provide real-time "thought" progress updates to the UI. This architecture is designed for static hosting environments like GitHub Pages.
- *
- * @dependencies
- * - @google/genai
- * - ../domain
- * - ../application/file-tree-utils
- * - ../../../../shared/config
- * - ../../../../shared/errors/api-key-error
- * - ./thought-stream-parser
- *
- * @changelog
- * - v1.1.0 (2025-09-16): Implemented a more robust error parser to safely extract human-readable messages from raw API error responses, preventing unparsed JSON fragments in the UI.
- * - v1.0.0 (2025-09-15): Implemented robust error parsing to catch raw Gemini API errors and transform them into user-friendly messages, preventing JSON blobs in the UI.
- * - v0.9.0 (2025-09-14): Implemented advanced prompt engineering techniques based on the provided research document. Refactored all prompts to use XML structure, expert personas, Chain-of-Thought reasoning, and few-shot examples to significantly improve output quality and reliability.
- * - v0.8.0 (2025-09-13): Fixed a bug where the thought stream would stall during the "Technical Review" phase. Enabled `thinkingConfig` for the review API call and refactored stream processing to correctly handle thoughts for both analysis phases.
- * - v0.7.0 (2025-09-12): Reverted to a full client-side implementation to support static hosting (e.g., GitHub Pages). API key is now read from localStorage.
- * - v0.6.0 (2025-09-12): Implemented secure calls to backend serverless functions (/api/analyze, /api/document), enabling streaming thought process and removing client-side API key handling.
- * - v0.5.0 (2025-09-11): Critical security refactor. Removed direct Gemini API calls and replaced them with secure calls to the backend serverless functions (/api/analyze, /api/document).
- * - v0.4.0 (2025-09-10): Added `severity` field to the technical review prompt and schema.
- * - v0.3.0 (2025-09-08): Refactored file collection logic to a shared utility for dynamic UI previews.
- * - v0.2.0 (2025-09-08): Added 'generateDocumentation' function and prompt for creating documentation.
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
 import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR, GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED } from "../../../../shared/config";
@@ -37,66 +7,38 @@ import { ThoughtStreamParser } from './thought-stream-parser';
 
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
 
-/**
- * Parses a raw error from the Gemini API into a user-friendly string.
- * This function is designed to handle complex error objects and stringified JSON.
- * @param e The caught error object.
- * @returns A new Error with a cleaned-up, human-readable message.
- */
 const parseGeminiError = (e: unknown): Error => {
     let friendlyMessage = 'An unknown error occurred with the Gemini API.';
-
     if (e instanceof Error) {
         const rawMessage = e.message;
         try {
-            // Attempt to find and parse a JSON object within the raw error string.
-            // This is safer than assuming the whole string is JSON.
             const jsonMatch = rawMessage.match(/\{.*\}/s);
             if (jsonMatch && jsonMatch[0]) {
                 const errorObj = JSON.parse(jsonMatch[0]);
                 if (errorObj?.error?.message) {
-                    // This is the most likely path for Gemini API errors.
                     friendlyMessage = errorObj.error.message;
                 } else {
-                     // Fallback if the JSON structure is unexpected.
                     friendlyMessage = rawMessage;
                 }
             } else {
-                // If no JSON is found, use the raw message.
                 friendlyMessage = rawMessage;
             }
         } catch (parseError) {
-            // If JSON parsing fails, the message is likely not structured JSON.
-            // Use the raw message and hope for the best.
             friendlyMessage = rawMessage;
         }
     } else if (typeof e === 'string') {
         friendlyMessage = e;
     }
-
-    // Clean up the final message: remove escaped newlines, then trim.
     const cleanedMessage = friendlyMessage.replace(/\\n/g, ' ').trim();
-
     if (cleanedMessage.toLowerCase().includes('api key not valid')) {
         return new ApiKeyError('Your Gemini API key is not valid. Please check it in Settings.');
     }
-
-    // Final check to prevent gibberish from being displayed. A real message should have some length.
     if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
         return new Error("An unexpected error occurred. Please check the console for details.");
     }
-    
     return new Error(cleanedMessage);
 };
 
-
-/**
- * Helper to process a Gemini stream, extracting thoughts for progress updates.
- * @param stream The stream from ai.models.generateContentStream.
- * @param parser The instance of ThoughtStreamParser.
- * @param onProgress Callback to send progress updates to the UI.
- * @returns The final concatenated text from the stream's primary output.
- */
 async function processStreamWithThoughts(
   stream: AsyncGenerator<GenerateContentResponse>,
   parser: ThoughtStreamParser,
@@ -105,7 +47,6 @@ async function processStreamWithThoughts(
   let accumulatedText = '';
   for await (const chunk of stream) {
     let hasNewThought = false;
-    // The 'thought' is often in a separate part within the same chunk candidate
     if (chunk.candidates?.[0]?.content?.parts) {
       for (const part of chunk.candidates[0].content.parts) {
         if (part.thought && part.text) {
@@ -116,17 +57,14 @@ async function processStreamWithThoughts(
         }
       }
     } else {
-      // Fallback for simpler stream structures without explicit parts
       accumulatedText += chunk.text;
     }
-
     if (hasNewThought) {
       onProgress(parser.getLatestSummary());
     }
   }
   return accumulatedText;
 }
-
 
 const getApiKey = (): string => {
   const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
@@ -187,19 +125,16 @@ export const generateDocumentation = async (
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-
     onProgress('Initializing documentation engine...');
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
         throw new Error("No valid files found for documentation generation based on the current scope.");
     }
-    
     onProgress('Fetching file contents for documentation...');
     const fileContentsString = await fetchFileContentsForAnalysis(files);
      if (!fileContentsString.trim()) {
         throw new Error("Could not fetch content from any files. The repository might be empty or contain only unsupported file types.");
     }
-
     const documentationPrompt = `
 <DocumentationRequest>
   <Persona>
@@ -212,29 +147,19 @@ export const generateDocumentation = async (
     3.  **Format Output:** Assemble the extracted information into a single, complete JSDoc/TSDoc comment block that immediately precedes the code it documents. Strictly follow the format shown in the \`<ExampleDocumentation>\`. Generate ONLY the comment block, with no other text or explanation.
   </Instructions>
   <ExampleDocumentation>
-/**
- * Fetches user data from the API and processes it.
- * @param {string} userId - The unique identifier for the user.
- * @param {object} [options] - Optional settings for the data retrieval.
- * @param {boolean} [options.includeProfile=false] - Whether to include the user's full profile.
- * @returns {Promise<User|null>} A promise that resolves with the user object or null if not found.
- */
   </ExampleDocumentation>
   <CodeToDocument>
     ${fileContentsString}
   </CodeToDocument>
 </DocumentationRequest>
     `;
-
     const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
-    
     onProgress('Generating documentation...');
     const resultStream = await ai.models.generateContentStream({
         model: config.model,
         contents: documentationPrompt,
         config: modelConfig,
     });
-    
     let accumulatedDoc = '';
     for await (const chunk of resultStream) {
         const chunkText = chunk.text;
@@ -243,7 +168,6 @@ export const generateDocumentation = async (
             onProgress(`Receiving documentation... (${(accumulatedDoc.length / 1024).toFixed(1)} KB)`);
         }
     }
-
     onProgress('Finalizing documentation...');
     return accumulatedDoc;
   } catch (e) {
@@ -264,21 +188,17 @@ export const runCodeAnalysis = async (
     const { repoName, fileTree, config, selectedFile, onProgress } = options;
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-
     onProgress('Initializing analysis engine...');
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
         throw new Error("No valid files found for analysis based on the current scope.");
     }
-
     onProgress('Fetching file contents for analysis...');
     const fileContentsString = await fetchFileContentsForAnalysis(files);
     if (!fileContentsString.trim()) {
         throw new Error("Could not fetch content from any files. The repository might be empty or contain only unsupported file types.");
     }
-
     const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
-
     const overviewPrompt = isSingleFile
       ? `
 <FileOverviewRequest>
@@ -293,10 +213,8 @@ export const runCodeAnalysis = async (
   </Instructions>
   <ExampleFileOverview>
 # File Analysis: ${files[0].name}
-
 ## Summary
 (A 1-2 paragraph summary of the file's purpose, its primary responsibility, and its role within a potential larger project.)
-
 ## Key Components
 - **[Component/Function Name]:** (Brief description of what it does.)
   </ExampleFileOverview>
@@ -320,26 +238,19 @@ export const runCodeAnalysis = async (
   </Instructions>
   <ExampleOverview>
 # Architectural Overview
-
 ## Technology Stack
 *   **Language:** TypeScript
 *   **Framework:** Next.js (React)
 *   **Styling:** Tailwind CSS
-
 ## Architectural Pattern
 The repository follows a classic **Client-Server architecture** with a monolithic frontend application built using Next.js.
-
 ## Core Components
-*   **/src/app/api/**: Defines the backend API routes.
-*   **/src/components/**: Contains reusable React components.
-*   **/src/hooks/**: Houses custom React hooks for managing client-side logic.
   </ExampleOverview>
   <RepositoryContext>
     ${fileContentsString}
   </RepositoryContext>
 </ProjectOverviewRequest>
       `;
-
     const reviewPrompt = `
 <CodeReviewRequest>
   <Persona>
@@ -358,7 +269,6 @@ The repository follows a classic **Client-Server architecture** with a monolithi
   </SourceCode>
 </CodeReviewRequest>
     `;
-
     const reviewSchema = {
       type: Type.ARRAY,
       items: {
@@ -384,7 +294,6 @@ The repository follows a classic **Client-Server architecture** with a monolithi
         required: ["fileName", "severity", "finding", "explanation"],
       },
     };
-
     const overviewModelConfig = {
       temperature: GEMINI_TEMPERATURE_REGULAR,
       thinkingConfig: {
@@ -392,7 +301,6 @@ The repository follows a classic **Client-Server architecture** with a monolithi
         includeThoughts: true,
       },
     };
-    
     const reviewModelConfig = {
       temperature: GEMINI_TEMPERATURE_LOW,
       responseMimeType: "application/json",
@@ -402,15 +310,10 @@ The repository follows a classic **Client-Server architecture** with a monolithi
         includeThoughts: true,
       },
     };
-
     const parser = new ThoughtStreamParser();
-
-    // --- Phase 1: Overview Generation ---
     onProgress('Phase 1/2: Generating Project Overview...');
     const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
     const overviewText = await processStreamWithThoughts(overviewStream, parser, onProgress);
-
-    // --- Phase 2: Technical Review ---
     onProgress('Phase 2/2: Performing Technical Review...');
     const reviewStream = await ai.models.generateContentStream({
       model: config.model,
@@ -418,12 +321,11 @@ The repository follows a classic **Client-Server architecture** with a monolithi
       config: reviewModelConfig
     });
     const reviewText = await processStreamWithThoughts(reviewStream, parser, onProgress);
-    
     onProgress('Finalizing analysis...');
     const reviewJson = JSON.parse(reviewText.trim());
     const finalResult = { overview: overviewText, review: reviewJson };
     return finalResult;
   } catch (e) {
-      throw parseGeminiError(e);
+    throw parseGeminiError(e);
   }
 };

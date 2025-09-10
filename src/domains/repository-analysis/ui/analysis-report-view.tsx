@@ -1,29 +1,3 @@
-/**
- * @file src/domains/repository-analysis/ui/analysis-report-view.tsx
- * @version 0.2.0
- * @description A component that renders the analysis results in a tabbed view for "Overview" and "Technical Review".
- *
- * @module RepositoryAnalysis.UI
- *
- * @summary This component is responsible for presenting the final analysis results. It uses a tabbed interface to separate the project overview from the detailed technical review findings. It maps over the review findings, renders each one with syntax-highlighted code blocks, and handles the logic for dismissing findings.
- *
- * @dependencies
- * - react
- * - react-markdown
- * - remark-gfm
- * - react-syntax-highlighter
- * - lucide-react
- * - ../domain
- * - ../application/repository-context
- * - ../../../../shared/lib/get-language
- *
- * @outputs
- * - Exports the `AnalysisReportView` React component.
- *
- * @changelog
- * - v0.2.0 (2025-09-10): Added severity badges to technical review findings for prioritization.
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { FC, useState, useCallback, useMemo } from 'react';
 import { AnalysisResults, TechnicalReviewFinding, ANALYSIS_TABS } from '../domain';
 import { useRepository } from '../application/repository-context';
@@ -35,7 +9,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD } from '../../../../shared/config';
-
 const codeViewerStyle = {
   ...vscDarkPlus,
   'code[class*="language-"]': {
@@ -48,7 +21,6 @@ const codeViewerStyle = {
     backgroundColor: 'transparent',
   }
 };
-
 interface FindingProps {
   finding: TechnicalReviewFinding;
   onFileSelect: (path: string) => void;
@@ -56,10 +28,8 @@ interface FindingProps {
   id: string;
   onDismiss: (id: string) => void;
 }
-
 const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDismiss }) => {
   const language = getLanguage(finding.fileName);
-
   const handleClick = useCallback(() => {
     onFileSelect(finding.fileName);
     if (finding.startLine && finding.endLine) {
@@ -71,7 +41,6 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
       dispatch({ type: 'SET_ACTIVE_LINE_RANGE', payload: null });
     }
   }, [onFileSelect, finding.fileName, finding.startLine, finding.endLine, dispatch]);
-
   return (
     <div className="review-finding">
       <div className="review-finding-header">
@@ -115,30 +84,22 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
     </div>
   );
 };
-
-
 interface AnalysisReportViewProps {
   analysisResults: AnalysisResults;
   onFileSelect: (path: string) => void;
 }
-
 export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResults, onFileSelect }) => {
   const { state: { dismissedFindings }, dispatch } = useRepository();
   const [activeTab, setActiveTab] = useState<ANALYSIS_TABS>(ANALYSIS_TABS.OVERVIEW);
-
   const findingWithIds = useMemo(() => analysisResults.review.map((finding, i) => ({
     ...finding,
     id: `${finding.fileName}-${finding.finding}-${i}`
   })), [analysisResults.review]);
-
   const visibleFindings = useMemo(() => findingWithIds.filter(f => !dismissedFindings.has(f.id)), [findingWithIds, dismissedFindings]);
-  
   const dismissedCount = dismissedFindings.size;
-
   const handleDismiss = useCallback((id: string) => {
     dispatch({ type: 'DISMISS_FINDING', payload: id });
   }, [dispatch]);
-
   return (
     <div className="analysis-results">
       <div className="tabs">

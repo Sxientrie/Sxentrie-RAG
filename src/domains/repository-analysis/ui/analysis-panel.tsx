@@ -1,31 +1,3 @@
-/**
- * @file src/domains/repository-analysis/ui/analysis-panel.tsx
- * @version 0.4.0
- * @description The UI panel for configuring and displaying code analysis results.
- *
- * @module RepositoryAnalysis.UI
- *
- * @summary This component provides the user interface for the core analysis feature. It includes controls for setting analysis configuration (scope, mode, custom rules), a button to trigger the analysis, and views for displaying loading states, errors, and the final analysis report. It consumes the `RepositoryContext` to interact with application state.
- *
- * @dependencies
- * - react
- * - lucide-react
- * - ../../../../shared/ui/panel
- * - ../domain
- * - ../application/repository-context
- * - ../application/use-analysis-runner
- * - ./analysis-report-view
- * - ../../../../shared/config
- *
- * @outputs
- * - Exports the `AnalysisPanel` React component.
- *
- * @changelog
- * - v0.4.0 (2025-09-15): Removed all local error rendering logic to delegate error display to the main app footer. Errors are now lifted up to the parent component.
- * - v0.3.0 (2025-09-08): Implemented dynamic file count preview for analysis scope options.
- * - v0.2.0 (2025-09-08): Implemented the UI and logic for the 'Generate Docs' feature.
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { FC, useState, useEffect, useMemo, useCallback } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
 import { AnalysisConfig, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_MODES, GEMINI_MODELS } from '../domain';
@@ -41,9 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { MAX_GEMINI_FILE_COUNT, MARKDOWN_FILE_EXTENSION, REPORT_FILE_MIMETYPE } from '../../../../shared/config';
 import { collectAllFiles } from '../application/file-tree-utils';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
-
 const isApiKeyError = (msg: string | null): boolean => !!msg && msg.startsWith('Gemini API key not found');
-
 export const AnalysisPanel: FC = () => {
   const {
     state: { selectedFile, repoInfo, fileTree, analysisResults, analysisConfig, isAnalysisLoading, analysisProgressMessage, error, dismissedFindings, isDocLoading, docProgressMessage, generatedDoc, docError, totalAnalyzableFiles },
@@ -53,24 +23,19 @@ export const AnalysisPanel: FC = () => {
     onError,
   } = useRepository();
   const { runAnalysis } = useAnalysisRunner();
-
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(false);
   const isRepoLoaded = !!repoInfo;
-
   useEffect(() => {
     if (analysisResults || generatedDoc) {
       setIsConfigCollapsed(true);
     }
   }, [analysisResults, generatedDoc]);
-
   useEffect(() => {
     if (!isRepoLoaded) {
       dispatch({ type: 'SET_ANALYSIS_PREVIEW_PATHS', payload: new Set() });
       return;
     }
-
     let paths = new Set<string>();
-
     if (analysisConfig.scope === ANALYSIS_SCOPES.FILE && selectedFile && !selectedFile.isImage) {
       paths.add(selectedFile.path);
     } else if (analysisConfig.scope === ANALYSIS_SCOPES.ALL) {
@@ -78,35 +43,25 @@ export const AnalysisPanel: FC = () => {
       const filesToConsider = analysisConfig.mode === ANALYSIS_MODES.FAST
         ? allFiles.slice(0, MAX_GEMINI_FILE_COUNT)
         : allFiles;
-
       paths = new Set(filesToConsider.map(f => f.path));
     }
-
     dispatch({ type: 'SET_ANALYSIS_PREVIEW_PATHS', payload: paths });
   }, [analysisConfig, fileTree, selectedFile, isRepoLoaded, dispatch]);
-
   const fastScanPreviewText = useMemo(() => {
     return `Analyzes the first ${Math.min(MAX_GEMINI_FILE_COUNT, totalAnalyzableFiles)} files.`;
   }, [totalAnalyzableFiles]);
-
   const deepScanPreviewText = useMemo(() => {
     return `Analyzes all ${totalAnalyzableFiles} supported files.`;
   }, [totalAnalyzableFiles]);
-
   const handleDownloadReport = useCallback((): void => {
     if (!analysisResults || !repoInfo) return;
-
     const reportDate = new Date().toUTCString();
     const reportParts: string[] = [];
     const findings = analysisResults.review;
-
-    // --- Report Header ---
     reportParts.push(`# Sxentrie Analysis Report for ${repoInfo.repo}\n\n`);
     reportParts.push(`**Repository:** https://github.com/${repoInfo.owner}/${repoInfo.repo}\n`);
     reportParts.push(`**Report Generated:** ${reportDate}\n\n`);
     reportParts.push(`---\n`);
-
-    // --- Configuration ---
     reportParts.push(`## Analysis Configuration\n\n`);
     if (analysisConfig.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
       reportParts.push(`*   **Scope:** Selected File (\`${selectedFile.path}\`)\n`);
@@ -120,17 +75,12 @@ export const AnalysisPanel: FC = () => {
       reportParts.push(`*   **Custom Directives:** None\n`);
     }
     reportParts.push(`\n---\n`);
-
-    // --- Project Overview ---
     reportParts.push(`## Project Overview\n\n`);
     reportParts.push(`${analysisResults.overview}\n\n---\n\n`);
-    
-    // --- Technical Review ---
     reportParts.push(`## Technical Review\n\n`);
     if (findings.length === 0) {
       reportParts.push(`> No specific technical issues were found based on the provided criteria.\n`);
     } else {
-      // --- Summary Table ---
       const summaryTable = [
         '| Severity | Finding | File |',
         '|:---|:---|:---|',
@@ -138,12 +88,9 @@ export const AnalysisPanel: FC = () => {
       ].join('\n');
       reportParts.push(summaryTable);
       reportParts.push(`\n\n---\n\n`);
-
-      // --- Detailed Findings ---
       reportParts.push('## Findings in Detail\n\n');
       findings.forEach((finding, index) => {
         reportParts.push(`### ${index + 1}. ${finding.finding}\n\n`);
-
         const detailsTable = [
           '| Severity | File | Line(s) |',
           '|:---|:---|:---|',
@@ -151,7 +98,6 @@ export const AnalysisPanel: FC = () => {
         ].join('\n');
         reportParts.push(detailsTable);
         reportParts.push('\n\n');
-
         finding.explanation.forEach(step => {
           if (step.type === 'text') {
             reportParts.push(`> ${step.content}\n\n`);
@@ -163,7 +109,6 @@ export const AnalysisPanel: FC = () => {
         reportParts.push(`\n`);
       });
     }
-
     const md = reportParts.join('');
     const blob = new Blob([md], { type: REPORT_FILE_MIMETYPE });
     const url = URL.createObjectURL(blob);
@@ -175,12 +120,9 @@ export const AnalysisPanel: FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, [analysisResults, repoInfo, analysisConfig, selectedFile]);
-
   const setConfig = useCallback((cfg: Partial<AnalysisConfig>) => dispatch({ type: 'SET_ANALYSIS_CONFIG', payload: cfg }), [dispatch]);
-
   const handleGenerateDocs = useCallback(async (): Promise<void> => {
     if (!repoInfo) return;
-
     dispatch({ type: 'RUN_DOC_GEN_START' });
     try {
         const result = await generateDocumentation({
@@ -200,14 +142,10 @@ export const AnalysisPanel: FC = () => {
         if (onError) onError(message);
     }
   }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
-
   const isFileAnalysisDisabled = !selectedFile || selectedFile.isImage === true;
   const ConfigCollapseIcon = isConfigCollapsed ? ChevronDown : ChevronUp;
-
   const dismissedCount = dismissedFindings.size;
-
   const panelTitle = <><FlaskConical size={ICON_SIZE_SM} /> Analysis</>;
-
   const panelActions = (
     <>
       {dismissedCount > 0 && (
@@ -242,8 +180,6 @@ export const AnalysisPanel: FC = () => {
       </button>
     </>
   );
-
-
   return (
     <Panel
       className="analysis-panel"
@@ -363,7 +299,6 @@ export const AnalysisPanel: FC = () => {
           </div>
         </div>
       </div>
-      
       {isDocLoading && (
         <div className="thinking-progress">
           <p key={docProgressMessage} className="thinking-text">
@@ -371,7 +306,6 @@ export const AnalysisPanel: FC = () => {
           </p>
         </div>
       )}
-      
       {generatedDoc && !isDocLoading && !docError && (
         <div className="analysis-results">
             <div className="tabs">
@@ -387,7 +321,6 @@ export const AnalysisPanel: FC = () => {
             </div>
         </div>
       )}
-
       {!isDocLoading && !generatedDoc && !docError && (
         <>
           {isAnalysisLoading && (
@@ -397,7 +330,6 @@ export const AnalysisPanel: FC = () => {
               </p>
             </div>
           )}
-
           {!isAnalysisLoading && !analysisResults && !error && (
             <div className="placeholder placeholder-top">
               {isRepoLoaded ? (
@@ -413,7 +345,6 @@ export const AnalysisPanel: FC = () => {
               )}
             </div>
           )}
-
           {analysisResults && !isAnalysisLoading && (
             <AnalysisReportView
               analysisResults={analysisResults}

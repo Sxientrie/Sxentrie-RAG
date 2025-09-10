@@ -1,26 +1,3 @@
-/**
- * @file src/domains/repository-analysis/ui/file-tree.tsx
- * @version 0.1.0
- * @description A component that renders an interactive, collapsible tree view of the repository's file structure.
- *
- * @module RepositoryAnalysis.UI
- *
- * @summary This component recursively renders the file and directory structure of a loaded repository. It manages the open/closed state of directories, handles file selection events, provides file-type-specific icons, and includes a search/filter functionality to navigate large repositories easily.
- *
- * @dependencies
- * - react
- * - lucide-react
- * - ../domain
- * - ../application/repository-context
- * - ../../../../shared/ui/error-boundary
- * - ../../../../shared/config
- *
- * @outputs
- * - Exports the `FileTree` React component.
- *
- * @changelog
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { FC, useState, useEffect, useMemo, useCallback } from "react";
 import { GitHubFile } from "../domain";
 import {
@@ -42,11 +19,9 @@ import { useRepository } from "../application/repository-context";
 import { Search, X } from 'lucide-react';
 import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
 import { UI_DEBOUNCE_DELAY_MS, ICON_SIZE_XS, ICON_SIZE_SM } from "../../../../shared/config";
-
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const lowerCaseFileName = fileName.toLowerCase();
-
     if (/\.(png|jpe?g|gif|webp|svg|ico)$/i.test(fileName)) {
         return <ImageIcon size={ICON_SIZE_XS} />;
     }
@@ -59,7 +34,6 @@ const getFileIcon = (fileName: string): JSX.Element => {
     if (lowerCaseFileName === 'dockerfile' || lowerCaseFileName.startsWith('docker-compose')) {
         return <FileBox size={ICON_SIZE_XS} />;
     }
-
     switch (extension) {
         case 'js':
         case 'ts':
@@ -91,7 +65,6 @@ const getFileIcon = (fileName: string): JSX.Element => {
             return <File size={ICON_SIZE_XS} />;
     }
 };
-
 interface TreeItemProps {
     item: GitHubFile;
     onFileClick: (file: GitHubFile) => void;
@@ -101,17 +74,13 @@ interface TreeItemProps {
     searchTerm: string;
     analysisPreviewPaths: Set<string>;
 }
-
 const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs, onToggle, searchTerm, analysisPreviewPaths }) => {
     const isDir = item.type === 'dir';
     const isOpen = !!searchTerm.trim() || openDirs.has(item.path);
     const isAnalysisTarget = item.type === 'file' && analysisPreviewPaths.has(item.path);
-
     const classNames = ['tree-item'];
     if (selectedPath === item.path) classNames.push('selected');
     if (isAnalysisTarget) classNames.push('analysis-target');
-
-
     const handleItemClick = () => {
         if (isDir) {
             onToggle(item.path);
@@ -119,7 +88,6 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
             onFileClick(item);
         }
     };
-    
     return (
         <li>
             <div
@@ -137,10 +105,10 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
             {isDir && isOpen && item.content && (
                 <ul className="tree-indentation">
                   {item.content.map(child => (
-                      <TreeItem 
-                        key={child.path} 
-                        item={child} 
-                        onFileClick={onFileClick} 
+                      <TreeItem
+                        key={child.path}
+                        item={child}
+                        onFileClick={onFileClick}
                         selectedPath={selectedPath}
                         openDirs={openDirs}
                         onToggle={onToggle}
@@ -153,7 +121,6 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
         </li>
     );
 };
-
 const filterFileTree = (nodes: GitHubFile[], term: string): GitHubFile[] => {
     if (!term.trim()) return nodes;
     const lowerCaseTerm = term.toLowerCase().trim();
@@ -169,32 +136,24 @@ const filterFileTree = (nodes: GitHubFile[], term: string): GitHubFile[] => {
         return acc;
     }, []);
 };
-
-
 export const FileTree: FC = () => {
   const { state, dispatch, handleFileClick } = useRepository();
   const { fileTree, selectedFile, searchTerm, analysisPreviewPaths } = state;
   const [openDirs, setOpenDirs] = useState<Set<string>>(new Set());
-  
   const filteredFileTree = useMemo(() => filterFileTree(fileTree, searchTerm), [fileTree, searchTerm]);
   const selectedPath = selectedFile?.path ?? null;
-
   useEffect(() => {
     if (selectedPath) {
         const pathParts = selectedPath.split('/');
         const parentPaths = pathParts.slice(0, -1).map((_, index) => {
             return pathParts.slice(0, index + 1).join('/');
         });
-        
         setOpenDirs(prev => {
             const newDirs = new Set(prev);
             parentPaths.forEach(p => newDirs.add(p));
             return newDirs;
         });
-        
-        // Wait for the state update to re-render and reveal the element
         setTimeout(() => {
-            // Use the more reliable data-path attribute for selection
             const selectedElement = document.querySelector(`[data-path="${selectedPath}"]`);
             if (selectedElement) {
                 selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -202,7 +161,6 @@ export const FileTree: FC = () => {
         }, UI_DEBOUNCE_DELAY_MS);
     }
   }, [selectedPath]);
-
   const handleToggle = useCallback((path: string) => {
       setOpenDirs(prevOpenDirs => {
           const newOpenDirs = new Set(prevOpenDirs);
@@ -214,15 +172,12 @@ export const FileTree: FC = () => {
           return newOpenDirs;
       });
   }, []);
-
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value });
   }, [dispatch]);
-
   const handleClearSearch = useCallback(() => {
     dispatch({ type: 'SET_SEARCH_TERM', payload: '' });
   }, [dispatch]);
-
   return (
     <div className="file-tree-container">
       <div className="file-search-area">

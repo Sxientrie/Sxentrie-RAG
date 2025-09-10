@@ -2,27 +2,19 @@ import React, { FC, useState } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
 import { SlidersHorizontal, KeyRound, Save, X } from 'lucide-react';
 import { ICON_SIZE_SM, ICON_SIZE_MD, UI_COPY_SUCCESS_TIMEOUT_MS } from '../../../../shared/config';
-
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
-
 interface SettingsPanelProps {
   onClose: () => void;
 }
-
 export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE_KEY) || '');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
-
   const handleSave = () => {
-      // In a real app, this might be encrypted or handled more securely.
-      // For this implementation, we'll use localStorage as requested.
       localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), UI_COPY_SUCCESS_TIMEOUT_MS);
   };
-
   const panelTitle = <><SlidersHorizontal size={ICON_SIZE_SM} /> Settings</>;
-
   const panelActions = (
     <button
       className="panel-action-btn"
@@ -33,7 +25,6 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
       <X size={ICON_SIZE_SM} />
     </button>
   );
-
   return (
     <Panel
       className="settings-panel"
