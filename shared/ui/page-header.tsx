@@ -1,33 +1,11 @@
-/**
- * @file shared/ui/page-header.tsx
- * @version 0.1.0
- * @description The shared header component for the main application layout.
- *
- * @module Core.UI
- *
- * @summary This component renders the top-level header of the application. It includes the application title and logo, and provides a slot for child components (like the `RepoLoader`) and the `LoginButton`.
- *
- * @dependencies
- * - react
- * - lucide-react
- * - ../../src/domains/accounts/ui/login-button
- *
- * @outputs
- * - Exports the `PageHeader` React component.
- *
- * @changelog
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { FC, ReactNode } from 'react';
 import { CodeXml, Settings } from 'lucide-react';
 import { LoginButton } from '../../src/domains/accounts/ui/login-button';
 import { ICON_SIZE_LG, ICON_SIZE_MD } from '../../shared/config';
-
 interface PageHeaderProps {
   children?: ReactNode;
   onToggleSettings: () => void;
 }
-
 export const PageHeader: FC<PageHeaderProps> = ({ children, onToggleSettings }) => {
   return (
     <header className="page-header">

@@ -1,26 +1,6 @@
-/**
- * @file src/domains/repository-analysis/ui/repo-loader.tsx
- * @version 0.1.0
- * @description The UI component with an input for the GitHub URL and buttons to load/reset the repository.
- *
- * @module RepositoryAnalysis.UI
- *
- * @summary This is a controlled form component located in the page header. It contains the text input for the GitHub repository URL and the "Load" and "Reset" buttons. It communicates user actions back to the main `App` component via callback props.
- *
- * @dependencies
- * - react
- * - lucide-react
- *
- * @outputs
- * - Exports the `RepoLoader` React component.
- *
- * @changelog
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { FC } from 'react';
 import { Play, RotateCw, Loader2 } from 'lucide-react';
 import { ICON_SIZE_XS } from '../../../../shared/config';
-
 interface RepoLoaderProps {
   repoUrl: string;
   setRepoUrl: (url: string) => void;
@@ -29,7 +9,6 @@ interface RepoLoaderProps {
   isRepoLoading: boolean;
   isRepoLoaded: boolean;
 }
-
 export const RepoLoader: FC<RepoLoaderProps> = ({
   repoUrl,
   setRepoUrl,
@@ -42,7 +21,6 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
     e.preventDefault();
     onLoad();
   };
-
   return (
     <form className="repo-loader-form" onSubmit={handleSubmit}>
       <input

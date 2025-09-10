@@ -1,33 +1,8 @@
-/**
- * @file src/domains/repository-analysis/application/repository-context.tsx
- * @version 0.3.0
- * @description React Context and provider for managing the state of the repository analysis feature.
- *
- * @module RepositoryAnalysis.Application
- *
- * @summary This file implements the state management for the repository analysis domain using a React Context and a `useReducer` hook. It holds state related to the file tree, selected file, file content cache, analysis results, and loading statuses. It also provides logic for file selection and content fetching.
- *
- * @dependencies
- * - react
- * - ../domain
- * - ../../../../shared/config
- * - ./file-tree-utils
- *
- * @outputs
- * - Exports `RepositoryProvider` component and `useRepository` hook.
- *
- * @changelog
- * - v0.3.0 (2025-09-08): Added state for total analyzable file count to support dynamic UI previews.
- * - v0.2.0 (2025-09-08): Added state management for documentation generation feature.
- * - v0.1.0 (2025-09-08): File created and documented.
- */
 import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect, useMemo } from 'react';
 import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES } from '../domain';
 import { MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE } from '../../../../shared/config';
 import { collectAllFiles } from './file-tree-utils';
-
 const isImagePath = (path: string): boolean => /\.(png|jpe?g|gif|webp|svg|ico)$/i.test(path);
-
 const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => {
   for (const node of tree) {
     if (node.path === path) {
@@ -42,7 +17,6 @@ const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => 
   }
   return null;
 };
-
 type RepositoryState = {
   repoInfo: RepoInfo | null;
   fileTree: GitHubFile[];
@@ -64,7 +38,6 @@ type RepositoryState = {
   totalAnalyzableFiles: number;
   analysisPreviewPaths: Set<string>;
 };
-
 export type RepositoryAction =
   | { type: 'INITIALIZE_STATE'; payload: { repoInfo: RepoInfo, fileTree: GitHubFile[] } }
   | { type: 'SELECT_FILE_START'; payload: { path: string, isImage: boolean, url?: string } }
@@ -86,7 +59,6 @@ export type RepositoryAction =
   | { type: 'RUN_DOC_GEN_ERROR'; payload: string }
   | { type: 'CLEAR_DOC' }
   | { type: 'SET_ANALYSIS_PREVIEW_PATHS'; payload: Set<string> };
-
 const createInitialState = (): RepositoryState => ({
   repoInfo: null,
   fileTree: [],
@@ -108,7 +80,6 @@ const createInitialState = (): RepositoryState => ({
   totalAnalyzableFiles: 0,
   analysisPreviewPaths: new Set(),
 });
-
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
   switch (action.type) {
     case 'RESET':
@@ -147,7 +118,6 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
       return { ...state, selectedFile: null, error: action.payload };
     case 'SET_SEARCH_TERM':
       return { ...state, searchTerm: action.payload };
-
     case 'RUN_ANALYSIS_START':
       return {
         ...state,
@@ -233,7 +203,6 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
       return state;
   }
 };
-
 type RepositoryContextType = {
   state: RepositoryState;
   dispatch: React.Dispatch<RepositoryAction>;
@@ -242,9 +211,7 @@ type RepositoryContextType = {
   onError: (message: string) => void;
   openSettingsPanel?: () => void;
 };
-
 const RepositoryContext = createContext<RepositoryContextType | undefined>(undefined);
-
 interface RepositoryProviderProps {
   children: ReactNode;
   repoInfo: RepoInfo | null;
@@ -252,10 +219,8 @@ interface RepositoryProviderProps {
   onError?: (message: string) => void;
   openSettingsPanel?: () => void;
 }
-
 export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repoInfo, fileTree, onError = () => { }, openSettingsPanel }) => {
   const [state, dispatch] = useReducer(repositoryReducer, undefined, createInitialState);
-
   useEffect(() => {
     if (repoInfo) {
       dispatch({ type: 'INITIALIZE_STATE', payload: { repoInfo, fileTree } });
@@ -263,7 +228,6 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       dispatch({ type: 'RESET' });
     }
   }, [repoInfo, fileTree]);
-
   const handleFileClick = useCallback(async (file: GitHubFile): Promise<void> => {
     const isImage = isImagePath(file.path);
     if (isImage && file.download_url) {
@@ -271,12 +235,10 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       return;
     }
     if (!file.download_url) return;
-
     if (state.fileContentCache.has(file.path)) {
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: state.fileContentCache.get(file.path)!, isImage: false, url: file.download_url } });
       return;
     }
-
     dispatch({ type: 'SELECT_FILE_START', payload: { path: file.path, isImage: false, url: file.download_url } });
     try {
       const response = await fetch(file.download_url);
@@ -292,7 +254,6 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       onError(message);
     }
   }, [state.fileContentCache, onError, dispatch]);
-
   const selectFileByPath = useCallback((path: string): void => {
     const file = findFileInTree(path, state.fileTree);
     if (file) {
@@ -301,7 +262,6 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
       onError(`Could not find file '${path}' in the current repository tree.`);
     }
   }, [state.fileTree, handleFileClick, onError]);
-
   const contextValue = useMemo(() => ({
     state,
     dispatch,
@@ -310,14 +270,12 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     onError,
     openSettingsPanel,
   }), [state, dispatch, handleFileClick, selectFileByPath, onError, openSettingsPanel]);
-
   return (
     <RepositoryContext.Provider value={contextValue}>
       {children}
     </RepositoryContext.Provider>
   );
 };
-
 export const useRepository = (): RepositoryContextType => {
   const context = useContext(RepositoryContext);
   if (context === undefined) {
