@@ -30,7 +30,7 @@
  */
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
-import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE } from "../../../../shared/config";
+import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR, GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
@@ -226,7 +226,7 @@ export const generateDocumentation = async (
 </DocumentationRequest>
     `;
 
-    const modelConfig = { temperature: 0.5 };
+    const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
     
     onProgress('Generating documentation...');
     const resultStream = await ai.models.generateContentStream({
@@ -386,19 +386,19 @@ The repository follows a classic **Client-Server architecture** with a monolithi
     };
 
     const overviewModelConfig = {
-      temperature: 0.5,
+      temperature: GEMINI_TEMPERATURE_REGULAR,
       thinkingConfig: {
-        thinkingBudget: -1,
+        thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
         includeThoughts: true,
       },
     };
     
     const reviewModelConfig = {
-      temperature: 0.2,
+      temperature: GEMINI_TEMPERATURE_LOW,
       responseMimeType: "application/json",
       responseSchema: reviewSchema,
       thinkingConfig: {
-        thinkingBudget: -1,
+        thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
         includeThoughts: true,
       },
     };

@@ -19,6 +19,7 @@
  */
 import React, { FC, ReactNode } from 'react';
 import { PanelLeftClose, PanelRightClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { ICON_SIZE_SM } from '../../shared/config';
 
 interface PanelProps {
   children: ReactNode;
@@ -52,7 +53,7 @@ export const Panel: FC<PanelProps> = ({ children, className, title, actions, isC
               aria-label={isCollapsed ? "Expand Panel" : "Collapse Panel"}
               aria-expanded={!isCollapsed}
             >
-              <CollapseIcon size={14} />
+              <CollapseIcon size={ICON_SIZE_SM} />
             </button>
           )}
         </div>

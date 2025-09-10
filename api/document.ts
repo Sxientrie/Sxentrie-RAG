@@ -8,6 +8,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { fetchFileContents } from './_utils';
 import { AnalysisConfig, GitHubFile } from '../src/domains/repository-analysis/domain';
+import { HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR } from '../shared/config';
 
 // This is a generic interface for a serverless request.
 interface ServerlessRequest {
@@ -41,10 +42,10 @@ export default async function handler(request: ServerlessRequest) {
     const API_KEY = process.env.API_KEY;
 
     if (!API_KEY) {
-      return new Response("API_KEY environment variable not set.", { status: 500 });
+      return new Response("API_KEY environment variable not set.", { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
     }
     if (!files || files.length === 0) {
-      return new Response("No files provided for documentation.", { status: 400 });
+      return new Response("No files provided for documentation.", { status: HTTP_STATUS_BAD_REQUEST });
     }
 
     const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -82,6 +83,6 @@ export default async function handler(request: ServerlessRequest) {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return new Response(message, { status: 500 });
+    return new Response(message, { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
 }

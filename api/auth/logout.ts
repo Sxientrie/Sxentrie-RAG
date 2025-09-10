@@ -17,13 +17,14 @@
  * - v0.1.0 (2025-09-08): File created and documented.
  */
 import { SESSION_COOKIE_NAME, EXPIRED_COOKIE_DATE } from '../_constants';
+import { HTTP_STATUS_OK } from '../../shared/config';
 
 export default async function handler() {
   // The key is to set the same cookie with an expiration date in the past.
   const cookie = `${SESSION_COOKIE_NAME}=; HttpOnly; Secure; Path=/; SameSite=Lax; Expires=${EXPIRED_COOKIE_DATE}`;
 
   return new Response(JSON.stringify({ success: true }), {
-      status: 200,
+      status: HTTP_STATUS_OK,
       headers: {
         'Content-Type': 'application/json',
         'Set-Cookie': cookie,

@@ -34,13 +34,14 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
+import { ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD } from '../../../../shared/config';
 
 const codeViewerStyle = {
   ...vscDarkPlus,
   'code[class*="language-"]': {
     ...vscDarkPlus['code[class*="language-"]'],
     fontFamily: 'var(--font-family-mono)',
-    fontSize: '0.8rem',
+    fontSize: UI_FONT_SIZE_SM,
   },
   'pre[class*="language-"]': {
     ...vscDarkPlus['pre[class*="language-"]'],
@@ -86,7 +87,7 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
           title="Dismiss this finding"
           aria-label="Dismiss this finding"
         >
-          <X size={14} />
+          <X size={ICON_SIZE_SM} />
         </button>
       </div>
       <div className="review-finding-body markdown-content">
@@ -167,9 +168,9 @@ export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResult
             />
           )) : (
             <div className="placeholder">
-              <FileCheck2 size={48} strokeWidth={1} />
+              <FileCheck2 size={ICON_SIZE_XL} strokeWidth={1} />
               No specific technical issues found based on the criteria.
-              {dismissedCount > 0 && <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>({dismissedCount} findings are hidden.)</p>}
+              {dismissedCount > 0 && <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)' }}>({dismissedCount} findings are hidden.)</p>}
             </div>
           )}
         </div>

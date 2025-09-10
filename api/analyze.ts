@@ -12,6 +12,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { fetchFileContents, processThoughtStream } from './_utils';
 import { AnalysisConfig, ANALYSIS_SCOPES, GitHubFile } from '../src/domains/repository-analysis/domain';
+import {
+    HTTP_STATUS_OK,
+    HTTP_STATUS_BAD_REQUEST,
+    HTTP_STATUS_INTERNAL_SERVER_ERROR,
+    GEMINI_TEMPERATURE_REGULAR,
+    GEMINI_TEMPERATURE_LOW,
+    GEMINI_THINKING_BUDGET_UNLIMITED,
+} from '../shared/config';
 
 // This is a generic interface for a serverless request.
 interface ServerlessRequest {
@@ -24,10 +32,10 @@ export default async function handler(request: ServerlessRequest) {
     const API_KEY = process.env.API_KEY;
 
     if (!API_KEY) {
-      return new Response(JSON.stringify({ error: "API_KEY environment variable not set." }), { status: 500 });
+      return new Response(JSON.stringify({ error: "API_KEY environment variable not set." }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
     }
     if (!files || files.length === 0) {
-      return new Response(JSON.stringify({ error: "No files provided for analysis." }), { status: 400 });
+      return new Response(JSON.stringify({ error: "No files provided for analysis." }), { status: HTTP_STATUS_BAD_REQUEST });
     }
 
     const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -123,15 +131,15 @@ export default async function handler(request: ServerlessRequest) {
           };
 
           const overviewModelConfig = {
-            temperature: 0.5,
+            temperature: GEMINI_TEMPERATURE_REGULAR,
             thinkingConfig: {
-              thinkingBudget: -1,
+              thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
               includeThoughts: true,
             },
           };
           
           const reviewModelConfig = {
-            temperature: 0.2,
+            temperature: GEMINI_TEMPERATURE_LOW,
             responseMimeType: "application/json",
             responseSchema: reviewSchema
           };
@@ -167,6 +175,6 @@ export default async function handler(request: ServerlessRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid request body.';
-    return new Response(JSON.stringify({ error: message }), { status: 400 });
+    return new Response(JSON.stringify({ error: message }), { status: HTTP_STATUS_BAD_REQUEST });
   }
 }

@@ -202,7 +202,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
         docProgressMessage: 'Preparing to generate documentation...',
         generatedDoc: null,
         docError: null,
-        analysisResults: null, // Clear analysis to show doc view
+        analysisResults: null,
         error: null,
       };
     case 'SET_DOC_GEN_PROGRESS':

@@ -41,23 +41,23 @@ import {
 import { useRepository } from "../application/repository-context";
 import { Search, X } from 'lucide-react';
 import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
-import { UI_DEBOUNCE_DELAY_MS } from "../../../../shared/config";
+import { UI_DEBOUNCE_DELAY_MS, ICON_SIZE_XS, ICON_SIZE_SM } from "../../../../shared/config";
 
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const lowerCaseFileName = fileName.toLowerCase();
 
     if (/\.(png|jpe?g|gif|webp|svg|ico)$/i.test(fileName)) {
-        return <ImageIcon size={12} />;
+        return <ImageIcon size={ICON_SIZE_XS} />;
     }
     if (lowerCaseFileName === '.gitignore') {
-        return <ShieldBan size={12} />;
+        return <ShieldBan size={ICON_SIZE_XS} />;
     }
     if (lowerCaseFileName.endsWith('.lock')) {
-        return <Lock size={12} />;
+        return <Lock size={ICON_SIZE_XS} />;
     }
     if (lowerCaseFileName === 'dockerfile' || lowerCaseFileName.startsWith('docker-compose')) {
-        return <FileBox size={12} />;
+        return <FileBox size={ICON_SIZE_XS} />;
     }
 
     switch (extension) {
@@ -73,22 +73,22 @@ const getFileIcon = (fileName: string): JSX.Element => {
         case 'cs':
         case 'rs':
         case 'sh':
-            return <FileCode2 size={12} />;
+            return <FileCode2 size={ICON_SIZE_XS} />;
         case 'json':
-            return <FileJson size={12} />;
+            return <FileJson size={ICON_SIZE_XS} />;
         case 'md':
         case 'txt':
-            return <FileText size={12} />;
+            return <FileText size={ICON_SIZE_XS} />;
         case 'yml':
         case 'yaml':
-            return <FileCog size={12} />;
+            return <FileCog size={ICON_SIZE_XS} />;
         case 'html':
-            return <FileCode size={12} />;
+            return <FileCode size={ICON_SIZE_XS} />;
         case 'css':
         case 'scss':
-            return <FileType size={12} />;
+            return <FileType size={ICON_SIZE_XS} />;
         default:
-            return <File size={12} />;
+            return <File size={ICON_SIZE_XS} />;
     }
 };
 
@@ -130,8 +130,8 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 aria-label={`Select ${isDir ? 'directory' : 'file'} ${item.name}`}
                 data-path={item.path}
             >
-                {isDir ? <ChevronRight size={12} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <span className="tree-item-spacer"></span>}
-                {isDir ? <Folder size={12} /> : getFileIcon(item.name)}
+                {isDir ? <ChevronRight size={ICON_SIZE_XS} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <span className="tree-item-spacer"></span>}
+                {isDir ? <Folder size={ICON_SIZE_XS} /> : getFileIcon(item.name)}
                 <span>{item.name}</span>
             </div>
             {isDir && isOpen && item.content && (
@@ -227,7 +227,7 @@ export const FileTree: FC = () => {
     <div className="file-tree-container">
       <div className="file-search-area">
         <div className="file-search-input-wrapper">
-          <Search size={12} />
+          <Search size={ICON_SIZE_XS} />
           <input
             type="text"
             className="file-search-input"
@@ -243,7 +243,7 @@ export const FileTree: FC = () => {
               onClick={handleClearSearch}
               aria-label="Clear search term"
             >
-              <X size={14} />
+              <X size={ICON_SIZE_SM} />
             </button>
           )}
         </div>

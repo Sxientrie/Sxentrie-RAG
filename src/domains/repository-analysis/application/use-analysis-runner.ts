@@ -51,7 +51,7 @@ export const useAnalysisRunner = () => {
       }
       const message = err instanceof Error ? err.message : "An unknown error occurred during analysis.";
       dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: message });
-      if (onError) onError(message); // Lift the error up to the app shell
+      if (onError) onError(message);
     }
   }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
 

@@ -52,3 +52,28 @@ export const TRUNCATED_GEMINI_MESSAGE = "\n... (file truncated)";
 export const MARKDOWN_FILE_EXTENSION = '.md';
 export const REPORT_FILE_MIMETYPE = 'text/markdown;charset=utf-8';
 export const GENERIC_FILE_MIMETYPE = 'text/plain;charset=utf-8';
+
+// === Icon Sizes ===
+export const ICON_SIZE_XS = 12;
+export const ICON_SIZE_SM = 14;
+export const ICON_SIZE_MD = 16;
+export const ICON_SIZE_LG = 20;
+export const ICON_SIZE_XL = 48;
+
+// === Gemini API ===
+export const GEMINI_TEMPERATURE_REGULAR = 0.5;
+export const GEMINI_TEMPERATURE_LOW = 0.2;
+export const GEMINI_THINKING_BUDGET_UNLIMITED = -1;
+
+// === HTTP Status Codes ===
+export const HTTP_STATUS_OK = 200;
+export const HTTP_STATUS_BAD_REQUEST = 400;
+export const HTTP_STATUS_UNAUTHORIZED = 401;
+export const HTTP_STATUS_FORBIDDEN = 403;
+export const HTTP_STATUS_NOT_FOUND = 404;
+export const HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
+
+// === UI Dimensions & Gaps ===
+export const UI_FONT_SIZE_SM = '0.8rem';
+export const UI_FONT_SIZE_MD = '0.85rem';
+export const UI_GAP_SM = '0.5rem';
