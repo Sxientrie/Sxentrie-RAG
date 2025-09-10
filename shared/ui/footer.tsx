@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { RefreshCw, AlertTriangle, X } from 'lucide-react';
-import { ICON_SIZE_XS, ICON_SIZE_SM } from '../../shared/config';
+import { ICON_SIZE_XS, ICON_SIZE_SM, TitleResetLayout, AriaLabelResetLayout, TextCopyrightTemplate, TitleClearError } from '../../shared/config';
 interface FooterProps {
   onResetLayout: () => void;
   errorMessage: string | null;
@@ -13,12 +13,12 @@ export const Footer: FC<FooterProps> = ({ onResetLayout, errorMessage, onClearEr
         <button
           className="footer-action-btn"
           onClick={onResetLayout}
-          title="Reset Layout"
-          aria-label="Reset panel layout"
+          title={TitleResetLayout}
+          aria-label={AriaLabelResetLayout}
         >
           <RefreshCw size={ICON_SIZE_XS} />
         </button>
-        <p className="copyright-text">© {new Date().getFullYear()} Sxentrie. All Rights Reserved. | Built with React, Typescript, API's & lots of coffee.</p>
+        <p className="copyright-text">{TextCopyrightTemplate.replace('{0}', new Date().getFullYear().toString())}</p>
       </div>
       {errorMessage && (
         <div className="footer-error-message" role="alert">
@@ -27,8 +27,8 @@ export const Footer: FC<FooterProps> = ({ onResetLayout, errorMessage, onClearEr
           <button
             className="footer-action-btn clear-error-btn"
             onClick={onClearError}
-            title="Clear error message"
-            aria-label="Clear error message"
+            title={TitleClearError}
+            aria-label={TitleClearError}
           >
             <X size={ICON_SIZE_SM} />
           </button>

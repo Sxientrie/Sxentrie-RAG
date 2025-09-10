@@ -25,6 +25,14 @@ import {
     StreamMessagePhase2,
     StreamMessageFinalizing,
     HttpHeaderContentTypeJsonUtf8,
+    AnalysisTargetFileTemplate,
+    AnalysisTargetRepoTemplate,
+    SeverityCritical,
+    SeverityHigh,
+    SeverityMedium,
+    SeverityLow,
+    ExplanationTypeText,
+    ExplanationTypeCode,
 } from '../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
@@ -49,7 +57,9 @@ export default async function handler(request: ServerlessRequest) {
           if (!fileContentsString.trim()) {
               throw new Error(ErrorCouldNotFetchContent);
           }
-          const analysisTarget = isSingleFile ? `the file '${files[0].path}'` : `the '${repoName}' repository`;
+          const analysisTarget = isSingleFile
+            ? AnalysisTargetFileTemplate.replace('{0}', files[0].path)
+            : AnalysisTargetRepoTemplate.replace('{0}', repoName);
           const overviewHeader = isSingleFile ? PromptOverviewHeaderFile : PromptOverviewHeaderRepo;
           const overviewBody = isSingleFile ? PromptOverviewBodyFile : PromptOverviewBodyRepo;
           const overviewPrompt = `
@@ -72,10 +82,10 @@ export default async function handler(request: ServerlessRequest) {
             You are an expert code reviewer with a meticulous eye for detail. Your task is to perform a technical review of the provided code from ${analysisTarget}. ${reviewFocus}
             Your entire output must be a valid JSON array of 'Finding' objects. Each 'Finding' object must conform to the following schema:
             -   \`fileName\`: The full path of the file being reviewed.
-            -   \`severity\`: A string indicating the issue's severity. Must be one of: "Critical", "High", "Medium", or "Low".
+            -   \`severity\`: A string indicating the issue's severity. Must be one of: "${SeverityCritical}", "${SeverityHigh}", "${SeverityMedium}", or "${SeverityLow}".
             -   \`finding\`: A concise title for the issue (e.g., "Unused State Variable," "Inefficient String Concatenation").
             -   \`explanation\`: An array of objects, where each object represents a step in the explanation. An object in this array must have:
-                -   \`type\`: Either "text" or "code".
+                -   \`type\`: Either "${ExplanationTypeText}" or "${ExplanationTypeCode}".
                 -   \`content\`: The string content for the text or code block.
             -   \`startLine\`: (Optional) The starting line number of the code snippet the finding refers to.
             -   \`endLine\`: (Optional) The ending line number of the code snippet.
@@ -83,10 +93,10 @@ export default async function handler(request: ServerlessRequest) {
             1.  For each issue you identify, structure your explanation as a logical narrative.
             2.  Begin with a piece of text that describes the problem and shows the problematic code snippet immediately after.
             3.  Follow up with text that explains the suggested fix, and then provide the corrected code snippet.
-            4.  Ensure that the \`explanation\` array alternates between "text" and "code" types to create a clear, easy-to-follow review.
+            4.  Ensure that the \`explanation\` array alternates between "${ExplanationTypeText}" and "${ExplanationTypeCode}" types to create a clear, easy-to-follow review.
             5.  Your response MUST be ONLY the JSON array. Do not include any preamble, comments, or markdown formatting outside of the JSON structure itself.
             6.  If you find no issues, return an empty JSON array: [].
-            7.  Assign a \`severity\` based on the potential impact: "Critical" for security vulnerabilities or major bugs, "High" for performance issues or significant logical errors, "Medium" for deviations from best practices, and "Low" for stylistic suggestions or minor issues.
+            7.  Assign a \`severity\` based on the potential impact: "${SeverityCritical}" for security vulnerabilities or major bugs, "${SeverityHigh}" for performance issues or significant logical errors, "${SeverityMedium}" for deviations from best practices, and "${SeverityLow}" for stylistic suggestions or minor issues.
             ---
             **CODE:**
             ---
@@ -129,24 +139,27 @@ export default async function handler(request: ServerlessRequest) {
             responseMimeType: JsonResponseMimeType,
             responseSchema: reviewSchema
           };
-          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessagePhase1}"}\n`));
+          const enqueueProgress = (message: string) => {
+            controller.enqueue(encoder.encode(`${JSON.stringify({ type: StreamTypeProgress, message })}\n`));
+          };
+          enqueueProgress(StreamMessagePhase1);
           const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
           const overviewText = await processThoughtStream(overviewStream, controller, encoder);
-          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessagePhase2}"}\n`));
+          enqueueProgress(StreamMessagePhase2);
           const reviewStream = await ai.models.generateContentStream({
             model: config.model,
             contents: reviewPrompt,
             config: reviewModelConfig
           });
           const reviewText = await processThoughtStream(reviewStream, controller, encoder);
-          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessageFinalizing}"}\n`));
+          enqueueProgress(StreamMessageFinalizing);
           const reviewJson = JSON.parse(reviewText.trim());
           const finalResult = { overview: overviewText, review: reviewJson };
-          controller.enqueue(encoder.encode(`{"type": "${StreamTypeResult}", "payload": ${JSON.stringify(finalResult)}}\n`));
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: StreamTypeResult, payload: finalResult })}\n`));
           controller.close();
         } catch (error) {
           const message = error instanceof Error ? error.message : ErrorUnknownAnalysis;
-          controller.enqueue(encoder.encode(`{"type": "${StreamTypeError}", "message": "${message}"}\n`));
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: StreamTypeError, message })}\n`));
           controller.close();
         }
       },

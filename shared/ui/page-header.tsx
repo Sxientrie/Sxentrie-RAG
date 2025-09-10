@@ -1,7 +1,7 @@
 import React, { FC, ReactNode } from 'react';
 import { CodeXml, Settings } from 'lucide-react';
 import { LoginButton } from '../../src/domains/accounts/ui/login-button';
-import { ICON_SIZE_LG, ICON_SIZE_MD } from '../../shared/config';
+import { ICON_SIZE_LG, ICON_SIZE_MD, AppTitle, AppTagline, TitleOpenSettings, AriaLabelOpenSettings } from '../../shared/config';
 interface PageHeaderProps {
   children?: ReactNode;
   onToggleSettings: () => void;
@@ -12,11 +12,8 @@ export const PageHeader: FC<PageHeaderProps> = ({ children, onToggleSettings }) 
       <div className="app-title">
         <CodeXml size={ICON_SIZE_LG} strokeWidth={2} />
         <h1>
-          <strong>Sxentrie:</strong>
-          <span className="header-tagline">
-            {' '}
-            Instant <code>Code</code> Comprehension.
-          </span>
+          <strong>{AppTitle}</strong>
+          <span className="header-tagline" dangerouslySetInnerHTML={{ __html: AppTagline }} />
         </h1>
       </div>
       <div className="header-actions">
@@ -25,8 +22,8 @@ export const PageHeader: FC<PageHeaderProps> = ({ children, onToggleSettings }) 
         <button
             className="footer-action-btn settings-btn"
             onClick={onToggleSettings}
-            title="Open Settings"
-            aria-label="Open settings panel"
+            title={TitleOpenSettings}
+            aria-label={AriaLabelOpenSettings}
         >
             <Settings size={ICON_SIZE_MD} />
         </button>

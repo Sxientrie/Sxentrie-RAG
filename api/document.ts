@@ -1,7 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { fetchFileContents } from './_utils';
 import { AnalysisConfig, GitHubFile } from '../src/domains/repository-analysis/domain';
-import { HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR } from '../shared/config';
+import {
+    HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorApiKeyNotSet,
+    ErrorNoFilesForDocumentation, ErrorCouldNotFetchContent, FileContentsPlaceholder,
+    GEMINI_TEMPERATURE_REGULAR, HttpHeaderContentType, REPORT_FILE_MIMETYPE, ErrorUnknown
+} from '../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
 }
@@ -22,26 +26,26 @@ Your task is to generate clear, concise, and professional documentation for the 
 ---
 **CODEBASE TO DOCUMENT:**
 ---
-{FILE_CONTENTS}
+${FileContentsPlaceholder}
 `;
 export default async function handler(request: ServerlessRequest) {
   try {
     const { files, config } = await request.json();
     const API_KEY = process.env.API_KEY;
     if (!API_KEY) {
-      return new Response("API_KEY environment variable not set.", { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
+      return new Response(ErrorApiKeyNotSet, { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
     }
     if (!files || files.length === 0) {
-      return new Response("No files provided for documentation.", { status: HTTP_STATUS_BAD_REQUEST });
+      return new Response(ErrorNoFilesForDocumentation, { status: HTTP_STATUS_BAD_REQUEST });
     }
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     const fileContentsString = await fetchFileContents(files, config);
     if (!fileContentsString.trim()) {
-      throw new Error("Could not fetch content from any files. The repository might be empty or contain only supported file types.");
+      throw new Error(ErrorCouldNotFetchContent);
     }
-    const prompt = DOCUMENTATION_PROMPT.replace('{FILE_CONTENTS}', fileContentsString);
+    const prompt = DOCUMENTATION_PROMPT.replace(FileContentsPlaceholder, fileContentsString);
     const baseModelConfig = {
-      temperature: 0.5,
+      temperature: GEMINI_TEMPERATURE_REGULAR,
     };
     const docStream = await ai.models.generateContentStream({
         model: config.model,
@@ -58,10 +62,10 @@ export default async function handler(request: ServerlessRequest) {
         }
     });
     return new Response(stream, {
-        headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+        headers: { [HttpHeaderContentType]: REPORT_FILE_MIMETYPE },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    const message = error instanceof Error ? error.message : ErrorUnknown;
     return new Response(message, { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
 }

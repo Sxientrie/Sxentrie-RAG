@@ -1,37 +1,31 @@
 import React, { FC, useState, useEffect, useMemo, useCallback } from "react";
 import { GitHubFile } from "../domain";
 import {
-    File,
-    Folder,
-    ChevronRight,
-    FileCode2,
-    FileJson,
-    FileText,
-    Image as ImageIcon,
-    FileCog,
-    ShieldBan,
-    Lock,
-    FileBox,
-    FileCode,
-    FileType
+    File, Folder, ChevronRight, FileCode2, FileJson, FileText, Image as ImageIcon, FileCog, ShieldBan,
+    Lock, FileBox, FileCode, FileType
 } from 'lucide-react';
 import { useRepository } from "../application/repository-context";
 import { Search, X } from 'lucide-react';
 import { ErrorBoundary } from "../../../../shared/ui/error-boundary";
-import { UI_DEBOUNCE_DELAY_MS, ICON_SIZE_XS, ICON_SIZE_SM } from "../../../../shared/config";
+import {
+    UI_DEBOUNCE_DELAY_MS, ICON_SIZE_XS, ICON_SIZE_SM, ImageFileRegex, Gitignore, Lockfile, DockerCompose,
+    AriaLabelSelectDirectoryTemplate, AriaLabelSelectFileTemplate, PlaceholderSearchFiles, AriaLabelSearchFiles,
+    AriaLabelClearSearch, ErrorBoundaryFileTreeName, NoFilesFoundTemplate
+} from "../../../../shared/config";
+import { SpecificFilenames } from "../../../../shared/config";
 const getFileIcon = (fileName: string): JSX.Element => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const lowerCaseFileName = fileName.toLowerCase();
-    if (/\.(png|jpe?g|gif|webp|svg|ico)$/i.test(fileName)) {
+    if (ImageFileRegex.test(fileName)) {
         return <ImageIcon size={ICON_SIZE_XS} />;
     }
-    if (lowerCaseFileName === '.gitignore') {
+    if (lowerCaseFileName === Gitignore) {
         return <ShieldBan size={ICON_SIZE_XS} />;
     }
-    if (lowerCaseFileName.endsWith('.lock')) {
+    if (lowerCaseFileName.endsWith(Lockfile)) {
         return <Lock size={ICON_SIZE_XS} />;
     }
-    if (lowerCaseFileName === 'dockerfile' || lowerCaseFileName.startsWith('docker-compose')) {
+    if (SpecificFilenames.has(lowerCaseFileName) || lowerCaseFileName.startsWith(DockerCompose)) {
         return <FileBox size={ICON_SIZE_XS} />;
     }
     switch (extension) {
@@ -95,7 +89,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onFileClick, selectedPath, openDirs
                 onClick={handleItemClick}
                 role="button"
                 tabIndex={0}
-                aria-label={`Select ${isDir ? 'directory' : 'file'} ${item.name}`}
+                aria-label={isDir ? AriaLabelSelectDirectoryTemplate.replace('{0}', item.name) : AriaLabelSelectFileTemplate.replace('{0}', item.name)}
                 data-path={item.path}
             >
                 {isDir ? <ChevronRight size={ICON_SIZE_XS} className={`tree-item-icon ${isOpen ? 'open' : ''}`} /> : <span className="tree-item-spacer"></span>}
@@ -186,17 +180,17 @@ export const FileTree: FC = () => {
           <input
             type="text"
             className="file-search-input"
-            placeholder="Search files and folders..."
+            placeholder={PlaceholderSearchFiles}
             value={searchTerm}
             onChange={handleSearchChange}
             disabled={fileTree.length === 0}
-            aria-label="Search files in repository"
+            aria-label={AriaLabelSearchFiles}
           />
           {searchTerm && (
             <button
               className="file-search-clear-btn"
               onClick={handleClearSearch}
-              aria-label="Clear search term"
+              aria-label={AriaLabelClearSearch}
             >
               <X size={ICON_SIZE_SM} />
             </button>
@@ -205,7 +199,7 @@ export const FileTree: FC = () => {
       </div>
       <div className="file-tree-scroll-area">
         {fileTree.length > 0 && (
-          <ErrorBoundary name="File Tree">
+          <ErrorBoundary name={ErrorBoundaryFileTreeName}>
             <ul className="file-tree">
               {filteredFileTree.map(file => (
                 <TreeItem
@@ -220,7 +214,7 @@ export const FileTree: FC = () => {
                 />
               ))}
             </ul>
-            {searchTerm && filteredFileTree.length === 0 && (<div className="placeholder">No files found matching "{searchTerm}".</div>)}
+            {searchTerm && filteredFileTree.length === 0 && (<div className="placeholder">{NoFilesFoundTemplate.replace('{0}', searchTerm)}</div>)}
           </ErrorBoundary>
         )}
       </div>

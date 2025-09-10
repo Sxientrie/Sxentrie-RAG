@@ -1,8 +1,13 @@
 import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect, useMemo } from 'react';
 import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES } from '../domain';
-import { MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE } from '../../../../shared/config';
+import {
+    MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE, ImageFileRegex, LabelLoading,
+    LabelPreparingAnalysis, LabelPreparingDocumentation, ImageFileLabelTemplate, ErrorFetchFailedTemplate,
+    ErrorCouldNotLoadFileContentTemplate, ErrorCouldNotLoadFileContent, ErrorFileNotFoundTemplate,
+    ErrorUseRepositoryOutsideProvider
+} from '../../../../shared/config';
 import { collectAllFiles } from './file-tree-utils';
-const isImagePath = (path: string): boolean => /\.(png|jpe?g|gif|webp|svg|ico)$/i.test(path);
+const isImagePath = (path: string): boolean => ImageFileRegex.test(path);
 const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => {
   for (const node of tree) {
     if (node.path === path) {
@@ -96,7 +101,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
     case 'SELECT_FILE_START':
       return {
         ...state,
-        selectedFile: { path: action.payload.path, content: 'Loading...', isImage: action.payload.isImage, url: action.payload.url },
+        selectedFile: { path: action.payload.path, content: LabelLoading, isImage: action.payload.isImage, url: action.payload.url },
         error: null,
         activeLineRange: null,
       };
@@ -122,7 +127,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
       return {
         ...state,
         isAnalysisLoading: true,
-        analysisProgressMessage: 'Preparing for analysis...',
+        analysisProgressMessage: LabelPreparingAnalysis,
         error: null,
         analysisResults: null,
         findingsMap: new Map(),
@@ -169,7 +174,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
       return {
         ...state,
         isDocLoading: true,
-        docProgressMessage: 'Preparing to generate documentation...',
+        docProgressMessage: LabelPreparingDocumentation,
         generatedDoc: null,
         docError: null,
         analysisResults: null,
@@ -231,7 +236,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
   const handleFileClick = useCallback(async (file: GitHubFile): Promise<void> => {
     const isImage = isImagePath(file.path);
     if (isImage && file.download_url) {
-      dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: `Image file: ${file.path}`, url: file.download_url, isImage: true } });
+      dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: ImageFileLabelTemplate.replace('{0}', file.path), url: file.download_url, isImage: true } });
       return;
     }
     if (!file.download_url) return;
@@ -242,14 +247,14 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     dispatch({ type: 'SELECT_FILE_START', payload: { path: file.path, isImage: false, url: file.download_url } });
     try {
       const response = await fetch(file.download_url);
-      if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+      if (!response.ok) throw new Error(ErrorFetchFailedTemplate.replace('{0}', response.statusText));
       const text = await response.text();
       const cappedText = text.length > MAX_DISPLAY_FILE_SIZE
         ? text.substring(0, MAX_DISPLAY_FILE_SIZE) + TRUNCATED_DISPLAY_MESSAGE
         : text;
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: cappedText, isImage: false, url: file.download_url } });
     } catch (err) {
-      const message = err instanceof Error ? `Could not load file content: ${err.message}` : "Could not load file content.";
+      const message = err instanceof Error ? ErrorCouldNotLoadFileContentTemplate.replace('{0}', err.message) : ErrorCouldNotLoadFileContent;
       dispatch({ type: 'SELECT_FILE_ERROR', payload: message });
       onError(message);
     }
@@ -259,7 +264,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     if (file) {
       handleFileClick(file);
     } else {
-      onError(`Could not find file '${path}' in the current repository tree.`);
+      onError(ErrorFileNotFoundTemplate.replace('{0}', path));
     }
   }, [state.fileTree, handleFileClick, onError]);
   const contextValue = useMemo(() => ({
@@ -279,7 +284,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
 export const useRepository = (): RepositoryContextType => {
   const context = useContext(RepositoryContext);
   if (context === undefined) {
-    throw new Error('useRepository must be used within a RepositoryProvider');
+    throw new Error(ErrorUseRepositoryOutsideProvider);
   }
   return context;
 };
