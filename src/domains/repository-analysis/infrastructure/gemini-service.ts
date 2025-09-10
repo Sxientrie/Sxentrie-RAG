@@ -4,9 +4,7 @@ import { MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, 
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
-
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
-
 const parseGeminiError = (e: unknown): Error => {
     let friendlyMessage = 'An unknown error occurred with the Gemini API.';
     if (e instanceof Error) {
@@ -38,7 +36,6 @@ const parseGeminiError = (e: unknown): Error => {
     }
     return new Error(cleanedMessage);
 };
-
 async function processStreamWithThoughts(
   stream: AsyncGenerator<GenerateContentResponse>,
   parser: ThoughtStreamParser,
@@ -65,7 +62,6 @@ async function processStreamWithThoughts(
   }
   return accumulatedText;
 }
-
 const getApiKey = (): string => {
   const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
   if (!apiKey || !apiKey.trim()) {
@@ -73,7 +69,6 @@ const getApiKey = (): string => {
   }
   return apiKey;
 };
-
 const getFilesForRequest = (
   fileTree: GitHubFile[],
   config: AnalysisConfig,
@@ -89,7 +84,6 @@ const getFilesForRequest = (
       : allFiles;
   }
 };
-
 const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string> => {
   const fileContents = await Promise.all(
     files.map(async file => {
@@ -111,7 +105,6 @@ const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string
   );
   return fileContents.filter(c => c).join('\n\n');
 };
-
 export const generateDocumentation = async (
   options: {
     repoName: string,
@@ -174,7 +167,6 @@ export const generateDocumentation = async (
     throw parseGeminiError(e);
   }
 };
-
 export const runCodeAnalysis = async (
   options: {
     repoName: string,
