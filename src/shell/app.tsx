@@ -8,7 +8,7 @@ import { FileViewer } from "../domains/repository-analysis/ui/file-viewer";
 import { AnalysisPanel } from "../domains/repository-analysis/ui/analysis-panel";
 import { RepositoryProvider } from '../domains/repository-analysis/application/repository-context';
 import { Panel } from "../../shared/ui/panel";
-import { FolderKanban, X } from 'lucide-react';
+import { FolderKanban } from 'lucide-react';
 import { PageHeader } from '../../shared/ui/page-header';
 import { Footer } from '../../shared/ui/footer';
 import { ICON_SIZE_SM } from '../../shared/config';
@@ -16,7 +16,12 @@ import { ErrorBoundary } from "../../shared/ui/error-boundary";
 import { Splitter } from "../../shared/ui/splitter";
 import { AuthProvider } from '../domains/accounts/application/auth-context';
 import { GitHubCallbackHandler } from '../domains/accounts/ui/github-callback-handler';
-import { SESSION_STORAGE_KEY, DEFAULT_PANEL_FLEX, MIN_PANEL_WIDTH_PX, AUTH_CALLBACK_PATH, UI_ERROR_TOAST_TIMEOUT_MS } from '../../shared/config';
+import {
+    SESSION_STORAGE_KEY, DEFAULT_PANEL_FLEX, MIN_PANEL_WIDTH_PX, AUTH_CALLBACK_PATH, UI_ERROR_TOAST_TIMEOUT_MS,
+    RightPanelViewer, RightPanelSettings, MediaQueryMobile, UiGapMobile, UiSplitterGap, DefaultRepoTitle,
+    FileTreePlaceholder, ErrorBoundaryFileTree, ErrorBoundaryAnalysis, ErrorBoundaryRightPanel,
+    ErrorCorruptedSession, ErrorLocalStorageSave, ErrorInvalidGitHubUrl, ErrorUnknown
+} from '../../shared/config';
 import { SettingsPanel } from '../domains/settings/ui/settings-panel';
 import { useMediaQuery } from "../shared/hooks/use-media-query";
 type AppState = {
@@ -24,7 +29,6 @@ type AppState = {
   repoInfo: RepoInfo | null;
   fileTree: GitHubFile[];
   isLoading: boolean;
-  loadingMessage: string;
   error: string | null;
   localStorageError: string | null;
   transientError: string | null;
@@ -45,7 +49,6 @@ const initialState: AppState = {
   repoInfo: null,
   fileTree: [],
   isLoading: false,
-  loadingMessage: '',
   error: null,
   localStorageError: null,
   transientError: null,
@@ -70,7 +73,7 @@ const getInitialState = (): AppState => {
   } catch (error) {
     return {
       ...initialState,
-      localStorageError: "Could not restore your previous session. The saved data was corrupted. Starting fresh.",
+      localStorageError: ErrorCorruptedSession,
     };
   }
   return initialState;
@@ -106,12 +109,12 @@ export const App: FC = () => {
         return <GitHubCallbackHandler />;
     }
     const [state, dispatch] = useReducer(appReducer, undefined, getInitialState);
-    const [rightPanelView, setRightPanelView] = useState<'viewer' | 'settings'>('viewer');
+    const [rightPanelView, setRightPanelView] = useState<string>(RightPanelViewer);
     const { repoInfo, fileTree, repoUrl, isLoading, error, localStorageError, transientError, panelWidths } = state;
     const mainGridRef = useRef<HTMLDivElement>(null);
     const animationFrameId = useRef<number | null>(null);
     const isRepoLoaded = !!repoInfo;
-    const isMobile = useMediaQuery('(max-width: 1024px)');
+    const isMobile = useMediaQuery(MediaQueryMobile);
     useEffect(() => {
         try {
             if (repoInfo || repoUrl) {
@@ -124,7 +127,7 @@ export const App: FC = () => {
                 localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(dataToStore));
             }
         } catch (e) {
-            dispatch({ type: 'SET_TRANSIENT_ERROR', payload: 'Failed to save session to local storage.' });
+            dispatch({ type: 'SET_TRANSIENT_ERROR', payload: ErrorLocalStorageSave });
         }
     }, [state.repoUrl, state.repoInfo, state.fileTree, state.panelWidths]);
     useEffect(() => {
@@ -138,7 +141,7 @@ export const App: FC = () => {
     const handleLoadRepo = useCallback(async () => {
         const parsedInfo = parseGitHubUrl(repoUrl);
         if (!parsedInfo) {
-            dispatch({ type: 'LOAD_REPO_ERROR', payload: 'Invalid GitHub URL format.' });
+            dispatch({ type: 'LOAD_REPO_ERROR', payload: ErrorInvalidGitHubUrl });
             return;
         }
         dispatch({ type: 'LOAD_REPO_START' });
@@ -146,7 +149,7 @@ export const App: FC = () => {
             const tree = await fetchRepoTree(parsedInfo.owner, parsedInfo.repo);
             dispatch({ type: 'LOAD_REPO_SUCCESS', payload: { repoInfo: parsedInfo, tree } });
         } catch (err) {
-            const message = err instanceof ApiError ? err.message : 'An unknown error occurred.';
+            const message = err instanceof ApiError ? err.message : ErrorUnknown;
             dispatch({ type: 'LOAD_REPO_ERROR', payload: message });
         }
     }, [repoUrl]);
@@ -195,26 +198,26 @@ export const App: FC = () => {
       if (error) dispatch({ type: 'RESET_STATE' });
     }, [localStorageError, transientError, error]);
     const handleToggleSettings = useCallback(() => {
-        setRightPanelView(prev => prev === 'viewer' ? 'settings' : 'viewer');
+        setRightPanelView(prev => prev === RightPanelViewer ? RightPanelSettings : RightPanelViewer);
     }, []);
     const handleOpenSettings = useCallback(() => {
-        setRightPanelView('settings');
+        setRightPanelView(RightPanelSettings);
     }, []);
     const handleCloseSettings = useCallback(() => {
-        setRightPanelView('viewer');
+        setRightPanelView(RightPanelViewer);
     }, []);
     const panelGridStyle = useMemo((): CSSProperties => {
         if (isMobile) {
             return {
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: UiGapMobile,
                 height: '100%',
             };
         }
         return {
             display: 'grid',
-            gridTemplateColumns: panelWidths.map(w => `${w}fr`).join(' 6px '),
+            gridTemplateColumns: panelWidths.map(w => `${w}fr`).join(` ${UiSplitterGap} `),
             height: '100%',
         };
     }, [isMobile, panelWidths]);
@@ -243,21 +246,21 @@ export const App: FC = () => {
                 ref={mainGridRef}
                 style={panelGridStyle}
             >
-                <ErrorBoundary name="File Tree Panel">
+                <ErrorBoundary name={ErrorBoundaryFileTree}>
                     <Panel
                         className="file-tree-panel"
-                        title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo.repo}</> : "Repository"}
+                        title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo.repo}</> : DefaultRepoTitle}
                     >
-                        {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>Load a repository to see the file tree.</p></div>}
+                        {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>{FileTreePlaceholder}</p></div>}
                     </Panel>
                 </ErrorBoundary>
                 {!isMobile && <Splitter onResize={handleResize(0)} />}
-                <ErrorBoundary name="Analysis Panel">
+                <ErrorBoundary name={ErrorBoundaryAnalysis}>
                     <AnalysisPanel />
                 </ErrorBoundary>
                 {!isMobile && <Splitter onResize={handleResize(1)} />}
-                <ErrorBoundary name="Right Panel">
-                    {rightPanelView === 'viewer' ? (
+                <ErrorBoundary name={ErrorBoundaryRightPanel}>
+                    {rightPanelView === RightPanelViewer ? (
                         <FileViewer onError={handleRepositoryError} />
                     ) : (
                         <SettingsPanel onClose={handleCloseSettings} />

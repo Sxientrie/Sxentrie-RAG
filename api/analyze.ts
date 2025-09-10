@@ -2,12 +2,29 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { fetchFileContents, processThoughtStream } from './_utils';
 import { AnalysisConfig, ANALYSIS_SCOPES, GitHubFile } from '../src/domains/repository-analysis/domain';
 import {
-    HTTP_STATUS_OK,
     HTTP_STATUS_BAD_REQUEST,
     HTTP_STATUS_INTERNAL_SERVER_ERROR,
     GEMINI_TEMPERATURE_REGULAR,
     GEMINI_TEMPERATURE_LOW,
     GEMINI_THINKING_BUDGET_UNLIMITED,
+    ErrorApiKeyNotSet,
+    ErrorNoFilesProvided,
+    ErrorCouldNotFetchContent,
+    ErrorUnknownAnalysis,
+    ErrorInvalidRequestBody,
+    PromptOverviewHeaderFile,
+    PromptOverviewHeaderRepo,
+    PromptOverviewBodyFile,
+    PromptOverviewBodyRepo,
+    PromptReviewFocusDefault,
+    JsonResponseMimeType,
+    StreamTypeProgress,
+    StreamTypeResult,
+    StreamTypeError,
+    StreamMessagePhase1,
+    StreamMessagePhase2,
+    StreamMessageFinalizing,
+    HttpHeaderContentTypeJsonUtf8,
 } from '../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
@@ -17,10 +34,10 @@ export default async function handler(request: ServerlessRequest) {
     const { repoName, files, config } = await request.json();
     const API_KEY = process.env.API_KEY;
     if (!API_KEY) {
-      return new Response(JSON.stringify({ error: "API_KEY environment variable not set." }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
+      return new Response(JSON.stringify({ error: ErrorApiKeyNotSet }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
     }
     if (!files || files.length === 0) {
-      return new Response(JSON.stringify({ error: "No files provided for analysis." }), { status: HTTP_STATUS_BAD_REQUEST });
+      return new Response(JSON.stringify({ error: ErrorNoFilesProvided }), { status: HTTP_STATUS_BAD_REQUEST });
     }
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     const encoder = new TextEncoder();
@@ -30,15 +47,11 @@ export default async function handler(request: ServerlessRequest) {
           const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
           const fileContentsString = await fetchFileContents(files, config);
           if (!fileContentsString.trim()) {
-              throw new Error("Could not fetch content from any files. The repository might be empty or contain only unsupported file types.");
+              throw new Error(ErrorCouldNotFetchContent);
           }
           const analysisTarget = isSingleFile ? `the file '${files[0].path}'` : `the '${repoName}' repository`;
-          const overviewHeader = isSingleFile
-            ? 'You are a senior software engineer tasked with explaining a code file to a new team member.\n\nYour task is to provide a concise, high-level summary of the single file provided.'
-            : 'You are a senior software engineer tasked with explaining a project to a new team member.\n\nYour task is to provide a concise, high-level project overview suitable for a technical audience.';
-          const overviewBody = isSingleFile
-            ? 'Explain what the file does, its primary purpose, and its key components (e.g., functions, classes, logic based on the code).'
-            : 'Explain what the project does, its primary purpose, and its key features based on the file contents.\nInfer and describe the technology stack (languages, frameworks, libraries).';
+          const overviewHeader = isSingleFile ? PromptOverviewHeaderFile : PromptOverviewHeaderRepo;
+          const overviewBody = isSingleFile ? PromptOverviewBodyFile : PromptOverviewBodyRepo;
           const overviewPrompt = `
             ${overviewHeader}
             Your analysis should be based ONLY on the provided code from ${analysisTarget}.
@@ -54,7 +67,7 @@ export default async function handler(request: ServerlessRequest) {
           `;
           const reviewFocus = config.customRules
             ? `In addition to your standard analysis, the user has provided the following directives to guide your review: "${config.customRules}". Please prioritize these areas where applicable.`
-            : 'Your focus is on providing a comprehensive, high-quality code review. Identify potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, readability, and adherence to best practices. Be as thorough and insightful as possible.';
+            : PromptReviewFocusDefault;
           const reviewPrompt = `
             You are an expert code reviewer with a meticulous eye for detail. Your task is to perform a technical review of the provided code from ${analysisTarget}. ${reviewFocus}
             Your entire output must be a valid JSON array of 'Finding' objects. Each 'Finding' object must conform to the following schema:
@@ -113,36 +126,36 @@ export default async function handler(request: ServerlessRequest) {
           };
           const reviewModelConfig = {
             temperature: GEMINI_TEMPERATURE_LOW,
-            responseMimeType: "application/json",
+            responseMimeType: JsonResponseMimeType,
             responseSchema: reviewSchema
           };
-          controller.enqueue(encoder.encode(`{"type": "progress", "message": "Phase 1/2: Generating Project Overview..."}\n`));
+          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessagePhase1}"}\n`));
           const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
           const overviewText = await processThoughtStream(overviewStream, controller, encoder);
-          controller.enqueue(encoder.encode(`{"type": "progress", "message": "Phase 2/2: Performing Technical Review..."}\n`));
+          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessagePhase2}"}\n`));
           const reviewStream = await ai.models.generateContentStream({
             model: config.model,
             contents: reviewPrompt,
             config: reviewModelConfig
           });
           const reviewText = await processThoughtStream(reviewStream, controller, encoder);
-          controller.enqueue(encoder.encode(`{"type": "progress", "message": "Finalizing analysis..."}\n`));
+          controller.enqueue(encoder.encode(`{"type": "${StreamTypeProgress}", "message": "${StreamMessageFinalizing}"}\n`));
           const reviewJson = JSON.parse(reviewText.trim());
           const finalResult = { overview: overviewText, review: reviewJson };
-          controller.enqueue(encoder.encode(`{"type": "result", "payload": ${JSON.stringify(finalResult)}}\n`));
+          controller.enqueue(encoder.encode(`{"type": "${StreamTypeResult}", "payload": ${JSON.stringify(finalResult)}}\n`));
           controller.close();
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'An unknown error occurred during analysis.';
-          controller.enqueue(encoder.encode(`{"type": "error", "message": "${message}"}\n`));
+          const message = error instanceof Error ? error.message : ErrorUnknownAnalysis;
+          controller.enqueue(encoder.encode(`{"type": "${StreamTypeError}", "message": "${message}"}\n`));
           controller.close();
         }
       },
     });
     return new Response(stream, {
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: { 'Content-Type': HttpHeaderContentTypeJsonUtf8 },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Invalid request body.';
+    const message = error instanceof Error ? error.message : ErrorInvalidRequestBody;
     return new Response(JSON.stringify({ error: message }), { status: HTTP_STATUS_BAD_REQUEST });
   }
 }
