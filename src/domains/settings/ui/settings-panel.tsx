@@ -1,6 +1,7 @@
 import React, { FC, useState } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
 import { SlidersHorizontal, KeyRound, Save, X } from 'lucide-react';
+import { ICON_SIZE_SM, ICON_SIZE_MD, UI_COPY_SUCCESS_TIMEOUT_MS } from '../../../../shared/config';
 
 const API_KEY_STORAGE_KEY = 'sxentrie-api-key';
 
@@ -17,10 +18,10 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
       // For this implementation, we'll use localStorage as requested.
       localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      setTimeout(() => setSaveStatus('idle'), UI_COPY_SUCCESS_TIMEOUT_MS);
   };
 
-  const panelTitle = <><SlidersHorizontal size={14} /> Settings</>;
+  const panelTitle = <><SlidersHorizontal size={ICON_SIZE_SM} /> Settings</>;
 
   const panelActions = (
     <button
@@ -29,7 +30,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
       title="Close Settings"
       aria-label="Close settings panel"
     >
-      <X size={14} />
+      <X size={ICON_SIZE_SM} />
     </button>
   );
 
@@ -42,7 +43,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
         <div className="settings-content">
             <div className="settings-section">
                 <h3 className="settings-section-title">
-                    <KeyRound size={16} />
+                    <KeyRound size={ICON_SIZE_MD} />
                     <span>API Credentials</span>
                 </h3>
                 <p className="settings-section-description">
@@ -61,7 +62,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
                         onClick={handleSave}
                         disabled={!apiKey.trim()}
                     >
-                       <Save size={14} />
+                       <Save size={ICON_SIZE_SM} />
                        {saveStatus === 'saved' ? 'Saved!' : 'Save'}
                     </button>
                 </div>

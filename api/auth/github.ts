@@ -19,6 +19,7 @@
  */
 import { SignJWT } from 'jose';
 import { JWT_EXPIRATION_TIME, JWT_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from '../_constants';
+import { HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR } from '../../shared/config';
 
 // This interface is a simple stand-in for a full serverless platform's Request object.
 interface ServerlessRequest {
@@ -47,7 +48,7 @@ export default async function handler(request: ServerlessRequest) {
   const { code } = await request.json();
 
   if (!code) {
-    return new Response(JSON.stringify({ error: 'No code provided.' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'No code provided.' }), { status: HTTP_STATUS_BAD_REQUEST });
   }
 
   const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
@@ -55,7 +56,7 @@ export default async function handler(request: ServerlessRequest) {
   const JWT_SECRET = process.env.JWT_SECRET;
 
   if (!JWT_SECRET) {
-    return new Response(JSON.stringify({ error: 'JWT_SECRET environment variable is not set.' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'JWT_SECRET environment variable is not set.' }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
 
   try {
@@ -107,7 +108,7 @@ export default async function handler(request: ServerlessRequest) {
 
     // Step 4: Return the user profile and set the JWT cookie
     return new Response(JSON.stringify(userProfile), {
-      status: 200,
+      status: HTTP_STATUS_OK,
       headers: {
         'Content-Type': 'application/json',
         'Set-Cookie': cookie,
@@ -116,6 +117,6 @@ export default async function handler(request: ServerlessRequest) {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Authentication failed.';
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    return new Response(JSON.stringify({ error: message }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
   }
 }

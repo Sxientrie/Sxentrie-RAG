@@ -18,9 +18,9 @@
  */
 import { GitHubFile } from '../domain/repository';
 
-export const ALLOWED_EXTENSIONS = new Set(['js', 'ts', 'py', 'go', 'java', 'html', 'css', 'md', 'json', 'jsx', 'tsx', 'sh', 'yml', 'yaml', 'rb', 'php', 'c', 'cpp', 'cs', 'rs']);
-export const SPECIFIC_FILENAMES = new Set(['dockerfile']);
-export const IGNORED_PATTERNS = [/\.min\.js$/i, /\.lock$/i];
+const ALLOWED_EXTENSIONS = new Set(['js', 'ts', 'py', 'go', 'java', 'html', 'css', 'md', 'json', 'jsx', 'tsx', 'sh', 'yml', 'yaml', 'rb', 'php', 'c', 'cpp', 'cs', 'rs']);
+const SPECIFIC_FILENAMES = new Set(['dockerfile']);
+const IGNORED_PATTERNS = [/\.min\.js$/i, /\.lock$/i];
 
 export const collectAllFiles = (nodes: GitHubFile[]): GitHubFile[] => {
   let files: GitHubFile[] = [];

@@ -19,6 +19,7 @@
  */
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RotateCw } from 'lucide-react';
+import { ICON_SIZE_XL, ICON_SIZE_SM } from '../../shared/config';
 
 interface Props {
   children: ReactNode;
@@ -59,11 +60,11 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="error-boundary-fallback panel">
              <div className="placeholder">
-                <AlertTriangle size={48} strokeWidth={1} color="var(--error)" />
+                <AlertTriangle size={ICON_SIZE_XL} strokeWidth={1} color="var(--error)" />
                 <h4 className="error-boundary-title">Error in {this.props.name}</h4>
                 <p>Something went wrong while rendering this section.</p>
                 <button onClick={this.handleReset} className="btn btn-sm btn-outline">
-                    <RotateCw size={14} /> Try Again
+                    <RotateCw size={ICON_SIZE_SM} /> Try Again
                 </button>
              </div>
         </div>

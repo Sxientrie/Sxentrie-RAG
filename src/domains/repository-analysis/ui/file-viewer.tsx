@@ -36,7 +36,7 @@ import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical, WrapText } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
-import { UI_COPY_SUCCESS_TIMEOUT_MS, UI_DEBOUNCE_DELAY_MS, DEFAULT_DOWNLOAD_FILENAME, GENERIC_FILE_MIMETYPE } from '../../../../shared/config';
+import { UI_COPY_SUCCESS_TIMEOUT_MS, UI_DEBOUNCE_DELAY_MS, DEFAULT_DOWNLOAD_FILENAME, GENERIC_FILE_MIMETYPE, ICON_SIZE_SM, ICON_SIZE_MD, ICON_SIZE_XL, UI_FONT_SIZE_SM } from '../../../../shared/config';
 
 interface FileViewerProps {
   onError: (message: string) => void;
@@ -112,7 +112,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
   const toggleWrap = useCallback(() => setIsWrapEnabled(p => !p), []);
   
   const panelTitle = (
-    <><FileCode2 size={14}/> {selectedFile ? selectedFile.path : 'Preview'}</>
+    <><FileCode2 size={ICON_SIZE_SM}/> {selectedFile ? selectedFile.path : 'Preview'}</>
   );
   
   const panelActions = selectedFile ? (
@@ -124,7 +124,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
               aria-label={isWrapEnabled ? "Disable line wrapping" : "Enable line wrapping"}
               disabled={!selectedFile || selectedFile.isImage}
           >
-              <WrapText size={14} />
+              <WrapText size={ICON_SIZE_SM} />
           </button>
           <button
               className="file-action-btn"
@@ -133,7 +133,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
               aria-label="Copy file content to clipboard"
               disabled={isCopied || selectedFile.isImage}
           >
-              {isCopied ? <Check size={14} color="var(--primary)" /> : <ClipboardCopy size={14} />}
+              {isCopied ? <Check size={ICON_SIZE_SM} color="var(--primary)" /> : <ClipboardCopy size={ICON_SIZE_SM} />}
           </button>
            <button
               className="file-action-btn"
@@ -141,7 +141,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
               title="Download file"
               aria-label="Download file"
           >
-              <Download size={14} />
+              <Download size={ICON_SIZE_SM} />
           </button>
       </div>
   ) : null;
@@ -149,7 +149,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
   const codeTagPropsStyle: React.CSSProperties = useMemo(() => {
     const style: React.CSSProperties = {
       fontFamily: 'var(--font-family-mono)',
-      fontSize: '0.8rem',
+      fontSize: UI_FONT_SIZE_SM,
     };
     if (isWrapEnabled) {
       style.whiteSpace = 'pre-wrap';
@@ -169,15 +169,15 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
             <p>Get started with a code analysis in three simple steps:</p>
             <ol>
                 <li>
-                    <div className="step-icon"><Github size={16}/></div>
+                    <div className="step-icon"><Github size={ICON_SIZE_MD}/></div>
                     <span><strong>Paste a public GitHub URL</strong> into the input field at the top of the page.</span>
                 </li>
                 <li>
-                    <div className="step-icon"><Play size={16}/></div>
+                    <div className="step-icon"><Play size={ICON_SIZE_MD}/></div>
                     <span><strong>Click "Load"</strong> to fetch the repository's file structure.</span>
                 </li>
                 <li>
-                    <div className="step-icon"><FlaskConical size={16}/></div>
+                    <div className="step-icon"><FlaskConical size={ICON_SIZE_MD}/></div>
                     <span><strong>Run an analysis</strong> on the entire repo or a selected file.</span>
                 </li>
             </ol>
@@ -186,7 +186,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
     }
     return (
         <>
-            <MousePointerClick size={48} strokeWidth={1} />
+            <MousePointerClick size={ICON_SIZE_XL} strokeWidth={1} />
             <p>Select a file from the list on the left to view its content.</p>
         </>
     );

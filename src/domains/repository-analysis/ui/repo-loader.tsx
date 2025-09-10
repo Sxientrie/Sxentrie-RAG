@@ -19,6 +19,7 @@
  */
 import React, { FC } from 'react';
 import { Play, RotateCw, Loader2 } from 'lucide-react';
+import { ICON_SIZE_XS } from '../../../../shared/config';
 
 interface RepoLoaderProps {
   repoUrl: string;
@@ -53,7 +54,7 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
         disabled={isRepoLoading}
       />
       <button type="submit" className="btn btn-xs btn-primary" disabled={isRepoLoading || !repoUrl.trim()}>
-        {isRepoLoading ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+        {isRepoLoading ? <Loader2 size={ICON_SIZE_XS} className="animate-spin" /> : <Play size={ICON_SIZE_XS} />}
         <span>Load</span>
       </button>
       <button
@@ -63,7 +64,7 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
         disabled={isRepoLoading || (!isRepoLoaded && !repoUrl)}
         aria-label="Reset application state"
       >
-        <RotateCw size={12} />
+        <RotateCw size={ICON_SIZE_XS} />
         <span>Reset</span>
       </button>
     </form>

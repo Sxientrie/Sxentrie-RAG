@@ -32,6 +32,7 @@ import { AnalysisConfig, RepoInfo, ANALYSIS_SCOPES, ANALYSIS_MODES, GEMINI_MODEL
 import { FlaskConical, ChevronUp, ChevronDown, Download, TestTubeDiagonal, Loader2, RotateCw, BookText, X } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
+import { ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_MD, UI_GAP_SM } from '../../../../shared/config';
 import { useAnalysisRunner } from '../application/use-analysis-runner';
 import { AnalysisReportView } from './analysis-report-view';
 import { generateDocumentation } from '../infrastructure/gemini-service';
@@ -205,7 +206,7 @@ export const AnalysisPanel: FC = () => {
 
   const dismissedCount = dismissedFindings.size;
 
-  const panelTitle = <><FlaskConical size={14} /> Analysis</>;
+  const panelTitle = <><FlaskConical size={ICON_SIZE_SM} /> Analysis</>;
 
   const panelActions = (
     <>
@@ -216,7 +217,7 @@ export const AnalysisPanel: FC = () => {
           title={`Show all ${dismissedCount} dismissed findings`}
           aria-label="Restore dismissed findings"
         >
-          <RotateCw size={14} />
+          <RotateCw size={ICON_SIZE_SM} />
         </button>
       )}
       {analysisResults && (
@@ -227,7 +228,7 @@ export const AnalysisPanel: FC = () => {
           title="Download analysis as Markdown file"
           aria-label="Download analysis report"
         >
-          <Download size={14} />
+          <Download size={ICON_SIZE_SM} />
         </button>
       )}
       <button
@@ -237,7 +238,7 @@ export const AnalysisPanel: FC = () => {
         aria-label={isConfigCollapsed ? "Show configuration" : "Hide configuration"}
         aria-expanded={!isConfigCollapsed}
       >
-        <ConfigCollapseIcon size={14} />
+        <ConfigCollapseIcon size={ICON_SIZE_SM} />
       </button>
     </>
   );
@@ -333,7 +334,7 @@ export const AnalysisPanel: FC = () => {
               </label>
             </div>
           </div>
-          <div className="analysis-actions" style={{ justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div className="analysis-actions" style={{ justifyContent: 'flex-end', gap: UI_GAP_SM }}>
             <button
               className="btn btn-sm btn-outline"
               onClick={handleGenerateDocs}
@@ -341,9 +342,9 @@ export const AnalysisPanel: FC = () => {
               title="Generate documentation for the selected scope"
             >
               {isDocLoading ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={ICON_SIZE_SM} className="animate-spin" />
               ) : (
-                <BookText size={14} />
+                <BookText size={ICON_SIZE_SM} />
               )}
               {isDocLoading ? "Generating..." : "Generate Docs"}
             </button>
@@ -353,9 +354,9 @@ export const AnalysisPanel: FC = () => {
               disabled={isAnalysisLoading || isDocLoading || !isRepoLoaded}
             >
               {isAnalysisLoading ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={ICON_SIZE_SM} className="animate-spin" />
               ) : (
-                <FlaskConical size={14} />
+                <FlaskConical size={ICON_SIZE_SM} />
               )}
               {isAnalysisLoading ? "Analyzing..." : "Run Analysis"}
             </button>
@@ -378,7 +379,7 @@ export const AnalysisPanel: FC = () => {
                   <button className="tab-btn active">Generated Documentation</button>
                 </div>
                  <button className="panel-action-btn" onClick={() => dispatch({ type: 'CLEAR_DOC' })} title="Clear documentation">
-                    <X size={14} /> Clear
+                    <X size={ICON_SIZE_SM} /> Clear
                 </button>
             </div>
             <div className="tab-content markdown-content" aria-live="polite">
@@ -401,9 +402,9 @@ export const AnalysisPanel: FC = () => {
             <div className="placeholder placeholder-top">
               {isRepoLoaded ? (
                 <>
-                  <TestTubeDiagonal size={48} strokeWidth={1} />
+                  <TestTubeDiagonal size={ICON_SIZE_XL} strokeWidth={1} />
                   <p style={{ maxWidth: '80%' }}>Your analysis results will appear here.</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', maxWidth: '80%' }}>
+                  <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)', maxWidth: '80%' }}>
                     Configure your analysis scope, add custom directives if you like, and click "Run Analysis" or "Generate Docs" to begin.
                   </p>
                 </>

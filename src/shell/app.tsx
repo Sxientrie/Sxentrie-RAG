@@ -46,6 +46,7 @@ import { Panel } from "../../shared/ui/panel";
 import { FolderKanban, X } from 'lucide-react';
 import { PageHeader } from '../../shared/ui/page-header';
 import { Footer } from '../../shared/ui/footer';
+import { ICON_SIZE_SM } from '../../shared/config';
 import { ErrorBoundary } from "../../shared/ui/error-boundary";
 import { Splitter } from "../../shared/ui/splitter";
 import { AuthProvider } from '../domains/accounts/application/auth-context';
@@ -311,7 +312,7 @@ export const App: FC = () => {
                 <ErrorBoundary name="File Tree Panel">
                     <Panel 
                         className="file-tree-panel"
-                        title={isRepoLoaded ? <><FolderKanban size={14} />{repoInfo.repo}</> : "Repository"}
+                        title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo.repo}</> : "Repository"}
                     >
                         {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>Load a repository to see the file tree.</p></div>}
                     </Panel>

@@ -35,7 +35,7 @@ type AuthAction =
 
 interface AuthState extends AuthSession {
   isLoading: boolean;
-  isSessionLoading: boolean; // New state to track initial load
+  isSessionLoading: boolean;
   error: string | null;
 }
 
@@ -43,7 +43,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   user: null,
   isLoading: false,
-  isSessionLoading: true, // Start in a loading state
+  isSessionLoading: true,
   error: null,
 };
 
@@ -56,7 +56,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'LOGIN_ERROR':
       return { ...state, isLoading: false, isSessionLoading: false, error: action.payload.error };
     case 'LOGOUT':
-      return { ...initialState, isSessionLoading: false }; // Ensure loading is false on logout
+      return { ...initialState, isSessionLoading: false };
     case 'SESSION_CHECK_COMPLETE':
         return { ...state, isSessionLoading: false };
     default:
@@ -132,7 +132,6 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
       if (popup.closed) {
         clearInterval(timer);
         window.removeEventListener('message', handleAuthMessage);
-        // If login is still in progress, set it to error.
         if (isLoadingRef.current) {
           dispatch({ type: 'LOGIN_ERROR', payload: { error: 'Login cancelled.' }});
         }
@@ -145,11 +144,9 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
     try {
       await authService.logout();
     } catch (error) {
-      // Failed to clear session on server, but we will still log out on the client.
+      // We will proceed with client-side logout even if server-side fails.
     } finally {
-      // Always clear client-side state regardless of server outcome
       dispatch({ type: 'LOGOUT' });
-      // Redirect to home to ensure a clean state
       window.location.assign('/');
     }
   }, []);
