@@ -5,8 +5,9 @@ interface FooterProps {
   onResetLayout: () => void;
   errorMessage: string | null;
   onClearError: () => void;
+  tooltipMessage: string | null;
 }
-export const Footer: FC<FooterProps> = ({ onResetLayout, errorMessage, onClearError }) => {
+export const Footer: FC<FooterProps> = ({ onResetLayout, errorMessage, onClearError, tooltipMessage }) => {
   return (
     <footer className="page-footer">
       <div className="footer-left-content">
@@ -18,7 +19,11 @@ export const Footer: FC<FooterProps> = ({ onResetLayout, errorMessage, onClearEr
         >
           <RefreshCw size={ICON_SIZE_XS} />
         </button>
-        <p className="copyright-text">{TextCopyrightTemplate.replace('{0}', new Date().getFullYear().toString())}</p>
+        {tooltipMessage ? (
+          <p className="footer-tooltip">{tooltipMessage}</p>
+        ) : (
+          <p className="copyright-text">{TextCopyrightTemplate.replace('{0}', new Date().getFullYear().toString())}</p>
+        )}
       </div>
       {errorMessage && (
         <div className="footer-error-message" role="alert">
