@@ -33,6 +33,7 @@ type AppState = {
   localStorageError: string | null;
   transientError: string | null;
   panelWidths: number[];
+  footerTooltip: string | null;
 };
 type AppAction =
   | { type: 'SET_REPO_URL'; payload: string }
@@ -43,7 +44,8 @@ type AppAction =
   | { type: 'CLEAR_LOCAL_STORAGE_ERROR' }
   | { type: 'SET_TRANSIENT_ERROR'; payload: string | null }
   | { type: 'SET_PANEL_WIDTHS'; payload: number[] }
-  | { type: 'RESET_PANEL_WIDTHS' };
+  | { type: 'RESET_PANEL_WIDTHS' }
+  | { type: 'SET_FOOTER_TOOLTIP'; payload: string | null };
 const initialState: AppState = {
   repoUrl: '',
   repoInfo: null,
@@ -53,6 +55,7 @@ const initialState: AppState = {
   localStorageError: null,
   transientError: null,
   panelWidths: DEFAULT_PANEL_FLEX,
+  footerTooltip: null,
 };
 const getInitialState = (): AppState => {
   try {
@@ -100,6 +103,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         return { ...state, panelWidths: action.payload };
     case 'RESET_PANEL_WIDTHS':
         return { ...state, panelWidths: initialState.panelWidths };
+    case 'SET_FOOTER_TOOLTIP':
+        return { ...state, footerTooltip: action.payload };
     default:
       return state;
   }
@@ -110,7 +115,7 @@ export const App: FC = () => {
     }
     const [state, dispatch] = useReducer(appReducer, undefined, getInitialState);
     const [rightPanelView, setRightPanelView] = useState<string>(RightPanelViewer);
-    const { repoInfo, fileTree, repoUrl, isLoading, error, localStorageError, transientError, panelWidths } = state;
+    const { repoInfo, fileTree, repoUrl, isLoading, error, localStorageError, transientError, panelWidths, footerTooltip } = state;
     const mainGridRef = useRef<HTMLDivElement>(null);
     const animationFrameId = useRef<number | null>(null);
     const isRepoLoaded = !!repoInfo;
@@ -233,6 +238,7 @@ export const App: FC = () => {
               onReset={handleReset}
               isRepoLoading={isLoading}
               isRepoLoaded={isRepoLoaded}
+              dispatch={dispatch}
             />
           </PageHeader>
           <RepositoryProvider
@@ -272,6 +278,7 @@ export const App: FC = () => {
             onResetLayout={handleResetLayout}
             errorMessage={displayError}
             onClearError={handleClearError}
+            tooltipMessage={footerTooltip}
           />
         </div>
       </AuthProvider>
