@@ -6,7 +6,7 @@ import { FileCheck2, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
+import { nord } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import {
     ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD, CssFontFamilyMono, CssTransparent,
@@ -14,14 +14,14 @@ import {
     LabelNoIssuesFound, LabelHiddenFindingsCountTemplate
 } from '../../../../shared/config';
 const codeViewerStyle = {
-  ...vscDarkPlus,
+  ...nord,
   'code[class*="language-"]': {
-    ...vscDarkPlus['code[class*="language-"]'],
+    ...nord['code[class*="language-"]'],
     fontFamily: CssFontFamilyMono,
     fontSize: UI_FONT_SIZE_SM,
   },
   'pre[class*="language-"]': {
-    ...vscDarkPlus['pre[class*="language-"]'],
+    ...nord['pre[class*="language-"]'],
     backgroundColor: CssTransparent,
   }
 };
@@ -44,6 +44,7 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
     } else {
       dispatch({ type: 'SET_ACTIVE_LINE_RANGE', payload: null });
     }
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: 'Editor' });
   }, [onFileSelect, finding.fileName, finding.startLine, finding.endLine, dispatch]);
   return (
     <div className="review-finding">
@@ -94,7 +95,6 @@ interface AnalysisReportViewProps {
 }
 export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResults, onFileSelect }) => {
   const { state: { dismissedFindings }, dispatch } = useRepository();
-  const [activeTab, setActiveTab] = useState<ANALYSIS_TABS>(ANALYSIS_TABS.OVERVIEW);
   const findingWithIds = useMemo(() => analysisResults.review.map((finding, i) => ({
     ...finding,
     id: `${finding.fileName}-${finding.finding}-${i}`
@@ -106,40 +106,24 @@ export const AnalysisReportView: FC<AnalysisReportViewProps> = ({ analysisResult
   }, [dispatch]);
   return (
     <div className="analysis-results">
-      <div className="tabs">
-        <div className="tabs-nav">
-          <button className={`tab-btn ${activeTab === ANALYSIS_TABS.OVERVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.OVERVIEW)}>{LabelProjectOverview}</button>
-          <button className={`tab-btn ${activeTab === ANALYSIS_TABS.REVIEW ? 'active' : ''}`} onClick={() => setActiveTab(ANALYSIS_TABS.REVIEW)}>
-            {LabelTechnicalReview} ({visibleFindings.length})
-            {dismissedCount > 0 && <span style={{ marginLeft: '6px', opacity: 0.7 }}>{LabelHiddenFindingsTemplate.replace('{0}', String(dismissedCount))}</span>}
-          </button>
-        </div>
-      </div>
-      {activeTab === ANALYSIS_TABS.OVERVIEW && (
-        <div className="tab-content markdown-content" aria-live="polite">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResults.overview}</ReactMarkdown>
-        </div>
-      )}
-      {activeTab === ANALYSIS_TABS.REVIEW && (
         <div className="tab-content" aria-live="polite">
-          {visibleFindings.length > 0 ? visibleFindings.map((finding) => (
-            <Finding
-              key={finding.id}
-              finding={finding}
-              onFileSelect={onFileSelect}
-              dispatch={dispatch}
-              id={finding.id}
-              onDismiss={handleDismiss}
-            />
-          )) : (
-            <div className="placeholder">
-              <FileCheck2 size={ICON_SIZE_XL} strokeWidth={1} />
-              {LabelNoIssuesFound}
-              {dismissedCount > 0 && <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)' }}>{LabelHiddenFindingsCountTemplate.replace('{0}', String(dismissedCount))}</p>}
-            </div>
-          )}
+            {dismissedCount > 0 && <p style={{ fontSize: UI_FONT_SIZE_MD, color: 'var(--muted-foreground)' }}>{LabelHiddenFindingsCountTemplate.replace('{0}', String(dismissedCount))}</p>}
+            {visibleFindings.length > 0 ? visibleFindings.map((finding) => (
+                <Finding
+                    key={finding.id}
+                    finding={finding}
+                    onFileSelect={onFileSelect}
+                    dispatch={dispatch}
+                    id={finding.id}
+                    onDismiss={handleDismiss}
+                />
+            )) : (
+                <div className="placeholder">
+                    <FileCheck2 size={ICON_SIZE_XL} strokeWidth={1} />
+                    {LabelNoIssuesFound}
+                </div>
+            )}
         </div>
-      )}
     </div>
   );
 };

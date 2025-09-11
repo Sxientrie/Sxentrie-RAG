@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
+import { nord } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical, WrapText } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
@@ -171,7 +171,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
         ) : (
             <SyntaxHighlighter
               language={getLanguage(selectedFile.path)}
-              style={vscDarkPlus}
+              style={nord}
               showLineNumbers
               wrapLines={true}
               lineProps={getLineProps}

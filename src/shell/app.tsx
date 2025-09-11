@@ -1,14 +1,14 @@
 import { FC, useReducer, useEffect, useMemo, useCallback, useRef, useState, CSSProperties } from "react";
-import { GitHubFile, RepoInfo } from "../domains/repository-analysis/domain";
+import { GitHubFile, RepoInfo, ANALYSIS_SCOPES } from "../domains/repository-analysis/domain";
 import { fetchRepoTree, parseGitHubUrl } from "../domains/repository-analysis/infrastructure/github-service";
 import { ApiError } from "../../shared/errors/api-error";
 import { RepoLoader } from "../domains/repository-analysis/ui/repo-loader";
 import { FileTree } from "../domains/repository-analysis/ui/file-tree";
 import { FileViewer } from "../domains/repository-analysis/ui/file-viewer";
 import { AnalysisPanel } from "../domains/repository-analysis/ui/analysis-panel";
-import { RepositoryProvider } from '../domains/repository-analysis/application/repository-context';
+import { RepositoryProvider, useRepository } from '../domains/repository-analysis/application/repository-context';
 import { Panel } from "../../shared/ui/panel";
-import { FolderKanban } from 'lucide-react';
+import { FolderKanban, Download, RotateCw } from 'lucide-react';
 import { PageHeader } from '../../shared/ui/page-header';
 import { Footer } from '../../shared/ui/footer';
 import { ICON_SIZE_SM } from '../../shared/config';
@@ -20,10 +20,22 @@ import {
     SESSION_STORAGE_KEY, DEFAULT_PANEL_FLEX, MIN_PANEL_WIDTH_PX, AUTH_CALLBACK_PATH, UI_ERROR_TOAST_TIMEOUT_MS,
     RightPanelViewer, RightPanelSettings, MediaQueryMobile, UiGapMobile, UiSplitterGap, DefaultRepoTitle,
     FileTreePlaceholder, ErrorBoundaryFileTree, ErrorBoundaryAnalysis, ErrorBoundaryRightPanel,
-    ErrorCorruptedSession, ErrorLocalStorageSave, ErrorInvalidGitHubUrl, ErrorUnknown
+    ErrorCorruptedSession, ErrorLocalStorageSave, ErrorInvalidGitHubUrl, ErrorUnknown,
+    MARKDOWN_FILE_EXTENSION, REPORT_FILE_MIMETYPE, ReportHeaderTemplate, ReportRepoUrlTemplate,
+    ReportDateTemplate, ReportHorizontalRule, ReportConfigHeader, ReportScopeFileTemplate, ReportScopeRepo,
+    ReportModeTemplate, ReportCustomDirectivesTemplate, ReportNoCustomDirectives, ReportOverviewHeader,
+    ReportReviewHeader, ReportNoIssuesFound, ReportSummaryTableHeader, ReportSummaryTableRowTemplate,
+    ReportDetailsHeader, ReportFindingHeaderTemplate, ReportDetailsTableHeader, ReportDetailsTableRowTemplate,
+    ReportLineRangeTemplate, ReportNotApplicable, ReportQuoteTemplate, ReportCodeBlockTemplate, ReportFileNameTemplate,
+    TitleShowDismissedFindingsTemplate, AriaLabelRestoreDismissed, TitleDownloadReport, AriaLabelDownloadReport
 } from '../../shared/config';
 import { SettingsPanel } from '../domains/settings/ui/settings-panel';
 import { useMediaQuery } from "../shared/hooks/use-media-query";
+import { AnalysisReportView } from "../domains/repository-analysis/ui/analysis-report-view";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { getLanguage } from "../../shared/lib/get-language";
+
 type AppState = {
   repoUrl: string;
   repoInfo: RepoInfo | null;
@@ -109,6 +121,161 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return state;
   }
 };
+
+const MainContent = () => {
+    const { state, dispatch, selectFileByPath } = useRepository();
+    const { analysisResults, activeTab, repoInfo, analysisConfig, selectedFile, dismissedFindings } = state;
+
+    const handleDownloadReport = useCallback((): void => {
+        if (!analysisResults || !repoInfo) return;
+        const reportDate = new Date().toUTCString();
+        const reportParts: string[] = [];
+        const findings = analysisResults.review;
+        reportParts.push(ReportHeaderTemplate.replace('{0}', repoInfo.repo));
+        reportParts.push(ReportRepoUrlTemplate.replace('{0}', repoInfo.owner).replace('{1}', repoInfo.repo));
+        reportParts.push(ReportDateTemplate.replace('{0}', reportDate));
+        reportParts.push(ReportHorizontalRule);
+        reportParts.push(ReportConfigHeader);
+        if (analysisConfig.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
+          reportParts.push(ReportScopeFileTemplate.replace('{0}', selectedFile.path));
+        } else {
+          reportParts.push(ReportScopeRepo);
+        }
+        reportParts.push(ReportModeTemplate.replace('{0}', analysisConfig.mode.charAt(0).toUpperCase() + analysisConfig.mode.slice(1)));
+        if (analysisConfig.customRules) {
+          reportParts.push(ReportCustomDirectivesTemplate.replace('{0}', analysisConfig.customRules));
+        } else {
+          reportParts.push(ReportNoCustomDirectives);
+        }
+        reportParts.push(`\n${ReportHorizontalRule}`);
+        reportParts.push(ReportOverviewHeader);
+        reportParts.push(`${analysisResults.overview}\n\n${ReportHorizontalRule}\n`);
+        reportParts.push(ReportReviewHeader);
+        if (findings.length === 0) {
+          reportParts.push(ReportNoIssuesFound);
+        } else {
+          const summaryTable = [
+            ReportSummaryTableHeader,
+            ...findings.map(f => ReportSummaryTableRowTemplate.replace('{0}', f.severity).replace('{1}', f.finding).replace('{2}', f.fileName)).join('\n'),
+          ].join('\n');
+          reportParts.push(summaryTable);
+          reportParts.push(`\n\n${ReportHorizontalRule}\n`);
+          reportParts.push(ReportDetailsHeader);
+          findings.forEach((finding, index) => {
+            reportParts.push(ReportFindingHeaderTemplate.replace('{0}', String(index + 1)).replace('{1}', finding.finding));
+            const detailsTable = [
+              ReportDetailsTableHeader,
+              ReportDetailsTableRowTemplate
+                .replace('{0}', finding.severity)
+                .replace('{1}', finding.fileName)
+                .replace('{2}', finding.startLine ? ReportLineRangeTemplate.replace('{0}', String(finding.startLine)).replace('{1}', String(finding.endLine)) : ReportNotApplicable)
+            ].join('\n');
+            reportParts.push(detailsTable);
+            reportParts.push('\n\n');
+            finding.explanation.forEach(step => {
+              if (step.type === 'text') {
+                reportParts.push(ReportQuoteTemplate.replace('{0}', step.content));
+              } else if (step.type === 'code') {
+                const language = getLanguage(finding.fileName);
+                reportParts.push(ReportCodeBlockTemplate.replace('{0}', language).replace('{1}', step.content));
+              }
+            });
+            reportParts.push(`\n`);
+          });
+        }
+        const md = reportParts.join('');
+        const blob = new Blob([md], { type: REPORT_FILE_MIMETYPE });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = ReportFileNameTemplate.replace('{0}', repoInfo.repo).replace('{1}', MARKDOWN_FILE_EXTENSION);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, [analysisResults, repoInfo, analysisConfig, selectedFile]);
+
+      const dismissedCount = dismissedFindings.size;
+
+      const tabs = useMemo(() => [
+        {
+          title: 'Editor',
+          content: <FileViewer onError={() => {}} />
+        },
+        {
+          title: 'Project Overview',
+          content: (
+            <div className="tab-content markdown-content" aria-live="polite">
+              {analysisResults ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResults.overview}</ReactMarkdown>
+              ) : (
+                <p>Run an analysis to see the project overview.</p>
+              )}
+            </div>
+          )
+        },
+        {
+          title: 'Technical Review',
+          content: (
+            <>
+              {analysisResults ? (
+                <AnalysisReportView analysisResults={analysisResults} onFileSelect={selectFileByPath} />
+              ) : (
+                <p>Run an analysis to see the technical review.</p>
+              )}
+            </>
+          )
+        }
+      ], [analysisResults, selectFileByPath]);
+
+      const activeTabIndex = useMemo(() => {
+        const index = tabs.findIndex(tab => tab.title === activeTab);
+        return index === -1 ? 0 : index;
+      }, [activeTab, tabs]);
+
+      const handleTabChange = (index: number) => {
+        dispatch({ type: 'SET_ACTIVE_TAB', payload: tabs[index].title });
+      };
+
+      const TabActions = (
+        <>
+          {dismissedCount > 0 && (
+            <button
+              className="panel-action-btn"
+              onClick={() => dispatch({ type: 'RESET_DISMISSED_FINDINGS' })}
+              title={TitleShowDismissedFindingsTemplate.replace('{0}', String(dismissedCount))}
+              aria-label={AriaLabelRestoreDismissed}
+            >
+              <RotateCw size={ICON_SIZE_SM} />
+            </button>
+          )}
+          {analysisResults && repoInfo && (
+            <button
+              className="panel-action-btn"
+              onClick={handleDownloadReport}
+              disabled={!analysisResults || !repoInfo}
+              title={TitleDownloadReport}
+              aria-label={AriaLabelDownloadReport}
+            >
+              <Download size={ICON_SIZE_SM} />
+            </button>
+          )}
+        </>
+      );
+
+      return (
+        <Panel
+            tabs={tabs}
+            activeTab={activeTabIndex}
+            onTabChange={handleTabChange}
+            actions={activeTabIndex === 2 ? TabActions : null}
+        >
+            {tabs[activeTabIndex].content}
+        </Panel>
+      );
+}
+
+
 export const App: FC = () => {
     if (window.location.pathname === AUTH_CALLBACK_PATH) {
         return <GitHubCallbackHandler />;
@@ -262,12 +429,12 @@ export const App: FC = () => {
                 </ErrorBoundary>
                 {!isMobile && <Splitter onResize={handleResize(0)} />}
                 <ErrorBoundary name={ErrorBoundaryAnalysis}>
-                    <AnalysisPanel />
+                    <MainContent />
                 </ErrorBoundary>
                 {!isMobile && <Splitter onResize={handleResize(1)} />}
                 <ErrorBoundary name={ErrorBoundaryRightPanel}>
                     {rightPanelView === RightPanelViewer ? (
-                        <FileViewer onError={handleRepositoryError} />
+                        <AnalysisPanel />
                     ) : (
                         <SettingsPanel onClose={handleCloseSettings} />
                     )}

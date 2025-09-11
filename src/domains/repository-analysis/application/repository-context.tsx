@@ -42,10 +42,12 @@ type RepositoryState = {
   docError: string | null;
   totalAnalyzableFiles: number;
   analysisPreviewPaths: Set<string>;
+  activeTab: string;
 };
 export type RepositoryAction =
   | { type: 'INITIALIZE_STATE'; payload: { repoInfo: RepoInfo, fileTree: GitHubFile[] } }
   | { type: 'SELECT_FILE_START'; payload: { path: string, isImage: boolean, url?: string } }
+  | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'SELECT_FILE_SUCCESS'; payload: { path: string, content: string, url?: string, isImage: boolean } }
   | { type: 'SELECT_FILE_ERROR'; payload: string }
   | { type: 'SET_SEARCH_TERM'; payload: string }
@@ -84,11 +86,14 @@ const createInitialState = (): RepositoryState => ({
   docError: null,
   totalAnalyzableFiles: 0,
   analysisPreviewPaths: new Set(),
+  activeTab: 'Editor',
 });
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
   switch (action.type) {
     case 'RESET':
       return createInitialState();
+    case 'SET_ACTIVE_TAB':
+        return { ...state, activeTab: action.payload };
     case 'INITIALIZE_STATE': {
       const totalAnalyzableFiles = collectAllFiles(action.payload.fileTree).length;
       return {
