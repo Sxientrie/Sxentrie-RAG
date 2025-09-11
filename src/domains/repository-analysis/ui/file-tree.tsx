@@ -179,7 +179,7 @@ export const FileTree: FC = () => {
           <Search size={ICON_SIZE_XS} />
           <input
             type="text"
-            className="file-search-input"
+            className="file-search-input input"
             placeholder={PlaceholderSearchFiles}
             value={searchTerm}
             onChange={handleSearchChange}

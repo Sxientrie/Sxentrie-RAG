@@ -25,6 +25,7 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
     <form className="repo-loader-form" onSubmit={handleSubmit}>
       <input
         type="text"
+        className="input"
         value={repoUrl}
         onChange={(e) => setRepoUrl(e.target.value)}
         placeholder="Paste public GitHub URL..."
@@ -37,7 +38,7 @@ export const RepoLoader: FC<RepoLoaderProps> = ({
       </button>
       <button
         type="button"
-        className="btn btn-xs btn-outline"
+        className="btn btn-xs btn-secondary"
         onClick={onReset}
         disabled={isRepoLoading || (!isRepoLoaded && !repoUrl)}
         aria-label="Reset application state"

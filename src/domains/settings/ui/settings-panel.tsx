@@ -46,7 +46,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
                 <div className="input-group">
                     <input
                         type="password"
-                        className="settings-input"
+                        className="settings-input input"
                         placeholder={PlaceholderGeminiApiKey}
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}

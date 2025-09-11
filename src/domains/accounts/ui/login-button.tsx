@@ -7,7 +7,7 @@ export const LoginButton: FC = () => {
   const { isAuthenticated, user, isLoading } = state;
   if (isAuthenticated && user) {
     return (
-      <button className="btn btn-xs btn-outline" onClick={logout} title={TitleClickToLogout}>
+      <button className="btn btn-xs btn-secondary" onClick={logout} title={TitleClickToLogout}>
         <img src={user.avatarUrl} alt={`${user.name}'s avatar`} className="user-avatar" />
         <span className="user-name">{user.name}</span>
         <LogOut size={ICON_SIZE_XS} />
@@ -15,7 +15,7 @@ export const LoginButton: FC = () => {
     );
   }
   return (
-    <button className="btn btn-xs btn-outline" onClick={login} disabled={isLoading}>
+    <button className="btn btn-xs btn-secondary" onClick={login} disabled={isLoading}>
       <LogIn size={ICON_SIZE_XS} />
       <span>{isLoading ? LabelLoggingIn : LabelLoginWithGitHub}</span>
     </button>
