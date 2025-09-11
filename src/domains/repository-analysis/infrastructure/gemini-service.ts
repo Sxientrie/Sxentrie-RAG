@@ -7,7 +7,7 @@ import {
     SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
     LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
     LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
-    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessagePhase1, StreamMessagePhase2,
+    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalyzing,
     StreamMessageFinalizing, JsonResponseMimeType
 } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
@@ -198,132 +198,83 @@ export const runCodeAnalysis = async (
     if (!fileContentsString.trim()) {
         throw new Error(ErrorCouldNotFetchContent);
     }
-    const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
-    const overviewPrompt = isSingleFile
-      ? `
-<FileOverviewRequest>
+    const analysisPrompt = `
+<CodeAnalysisRequest>
   <Persona>
-    You are a senior software engineer tasked with explaining a code file to a new team member. Your expertise lies in distilling complex code into clear, understandable summaries.
+    You are an expert Principal Software Architect and code reviewer. Your expertise lies in analyzing complex codebases, identifying architectural patterns, and conducting thorough, actionable code reviews. You communicate findings clearly and concisely.
   </Persona>
   <Instructions>
-    Your task is to provide a comprehensive analysis of the single source code file provided. The final output must be a well-structured Markdown document. Follow this internal reasoning process:
-    1.  **Purpose Identification:** Read the code to determine the file's primary role and responsibility within the context of a larger application.
-    2.  **Component Breakdown:** Identify the key functions, classes, types, or components defined within the file.
-    3.  **Synthesize and Format:** Combine your findings into a Markdown report. Strictly adhere to the format demonstrated in the \`<ExampleFileOverview>\`. Do NOT add any preamble or explanation before or after the markdown.
-  </Instructions>
-  <ExampleFileOverview>
-# File Analysis: ${files[0].name}
-## Summary
-(A 1-2 paragraph summary of the file's purpose, its primary responsibility, and its role within a potential larger project.)
-## Key Components
-- **[Component/Function Name]:** (Brief description of what it does.)
-  </ExampleFileOverview>
-  <SourceCode file_path="${files[0].path}">
-    ${fileContentsString}
-  </SourceCode>
-</FileOverviewRequest>
-      `
-      : `
-<ProjectOverviewRequest>
-  <Persona>
-    You are a Principal Software Architect with extensive experience in analyzing complex codebases and communicating their structure to technical stakeholders. Your expertise lies in identifying technology stacks, architectural patterns, and core functionalities from source code.
-  </Persona>
-  <Instructions>
-    Your task is to generate a comprehensive architectural overview of the provided repository context. The final output must be a well-structured Markdown document. Follow this internal reasoning process:
-    1.  **File-Level Abstraction:** For each file provided in the \`<RepositoryContext>\`, first generate a concise, one-sentence internal summary of its primary role or purpose.
-    2.  **Technology Stack Identification:** Analyze dependency management files to identify the core frameworks, languages, and key libraries. Corroborate this with import statements in the source code.
-    3.  **Architectural Pattern Inference:** Based on the directory structure and the relationships between the file summaries, infer the high-level architectural pattern (e.g., Monolithic, Microservices, MVC, Client-Server).
-    4.  **Core Component Analysis:** Identify and describe the main functional components of the application (e.g., "Authentication Service," "API Gateway," "UI Component Library"). Explain how they likely interact.
-    5.  **Synthesis:** Synthesize all of the above information into a single, coherent Markdown report. Strictly adhere to the format demonstrated in the \`<ExampleOverview>\` section.
-  </Instructions>
-  <ExampleOverview>
-# Architectural Overview
-## Technology Stack
-*   **Language:** TypeScript
-*   **Framework:** Next.js (React)
-*   **Styling:** Tailwind CSS
-## Architectural Pattern
-The repository follows a classic **Client-Server architecture** with a monolithic frontend application built using Next.js.
-## Core Components
-  </ExampleOverview>
-  <RepositoryContext>
-    ${fileContentsString}
-  </RepositoryContext>
-</ProjectOverviewRequest>
-      `;
-    const reviewPrompt = `
-<CodeReviewRequest>
-  <Persona>
-    You are an expert code reviewer and principal software engineer with deep expertise in identifying security vulnerabilities, performance bottlenecks, code smells, and violations of modern software engineering best practices. Your feedback is always constructive, precise, and actionable.
-  </Persona>
-  <Instructions>
-    Your task is to conduct a thorough review of the provided source code. Follow this multi-step process internally:
-    1.  **Initial Scan:** Identify the primary programming languages, frameworks, and key libraries used in the provided files.
-    2.  **Establish Criteria:** Based on the tech stack, formulate a mental checklist of common issues to look for. For example, for a React/TypeScript project, consider issues like prop drilling, inefficient state management, incorrect hook usage, type safety violations, and accessibility anti-patterns. For a Node.js backend, consider async error handling, security headers, dependency vulnerabilities, and inefficient database queries.
-    3.  **Detailed Analysis:** Review the code file-by-file and line-by-line against your established criteria. For each issue you identify, pinpoint the exact file and line number.
-    4.  **Classification and Solution:** For each identified issue, classify its severity from the allowed list: "Critical", "High", "Medium", "Low". Then, formulate a clear, concise description of the problem and a practical, actionable suggestion for how to fix it, including a brief code example where applicable.
-    5.  **Final Output:** Aggregate all your findings into a JSON array. The structure of this JSON array is strictly defined by the \`response_schema\` provided in the API call. Do not add any explanatory text, markdown, or any content outside of the final JSON array.
+    Your task is to perform a comprehensive analysis of the provided source code and return a single, valid JSON object. This JSON object must contain two top-level properties: "overview" and "review".
+
+    1.  **Generate High-Level Overview (overview):**
+        *   Analyze the provided files to understand the project's purpose, technology stack, and architecture.
+        *   Synthesize this information into a well-structured Markdown string.
+        *   Assign this Markdown string to the "overview" property of the final JSON object.
+
+    2.  **Generate Detailed Technical Review (review):**
+        *   Conduct a thorough review of the code, identifying potential bugs, security vulnerabilities, performance bottlenecks, and areas for improvement.
+        *   For each finding, determine the file, line number(s), severity ("Critical", "High", "Medium", "Low"), and a clear explanation with an actionable suggestion.
+        *   Format all findings into a JSON array of objects, where each object represents a single finding.
+        *   Assign this array to the "review" property of the final JSON object.
+
+    The final output MUST be a single, valid JSON object that strictly adheres to the 'response_schema' provided in the API call. Do not include any text, markdown, or explanation outside of this JSON object.
   </Instructions>
   <SourceCode>
     ${fileContentsString}
   </SourceCode>
-</CodeReviewRequest>
+</CodeAnalysisRequest>
     `;
-    const reviewSchema = {
-      type: Type.ARRAY,
-      items: {
+    const analysisSchema = {
         type: Type.OBJECT,
         properties: {
-          fileName: { type: Type.STRING },
-          severity: { type: Type.STRING },
-          finding: { type: Type.STRING },
-          explanation: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                type: { type: Type.STRING },
-                content: { type: Type.STRING },
-              },
-              required: ["type", "content"],
+            overview: { type: Type.STRING },
+            review: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        fileName: { type: Type.STRING },
+                        severity: { type: Type.STRING },
+                        finding: { type: Type.STRING },
+                        explanation: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    type: { type: Type.STRING },
+                                    content: { type: Type.STRING },
+                                },
+                                required: ["type", "content"],
+                            },
+                        },
+                        startLine: { type: Type.NUMBER },
+                        endLine: { type: Type.NUMBER },
+                    },
+                    required: ["fileName", "severity", "finding", "explanation"],
+                },
             },
-          },
-          startLine: { type: Type.NUMBER },
-          endLine: { type: Type.NUMBER },
         },
-        required: ["fileName", "severity", "finding", "explanation"],
-      },
+        required: ["overview", "review"],
     };
-    const overviewModelConfig = {
-      temperature: GEMINI_TEMPERATURE_REGULAR,
-      thinkingConfig: {
-        thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
-        includeThoughts: true,
-      },
-    };
-    const reviewModelConfig = {
+    const modelConfig = {
       temperature: GEMINI_TEMPERATURE_LOW,
       responseMimeType: JsonResponseMimeType,
-      responseSchema: reviewSchema,
+      responseSchema: analysisSchema,
       thinkingConfig: {
         thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
         includeThoughts: true,
       },
     };
     const parser = new ThoughtStreamParser();
-    onProgress(StreamMessagePhase1);
-    const overviewStream = await ai.models.generateContentStream({ model: config.model, contents: overviewPrompt, config: overviewModelConfig });
-    const overviewText = await processStreamWithThoughts(overviewStream, parser, onProgress);
-    onProgress(StreamMessagePhase2);
-    const reviewStream = await ai.models.generateContentStream({
-      model: config.model,
-      contents: reviewPrompt,
-      config: reviewModelConfig
+    onProgress(StreamMessageAnalyzing);
+    const analysisStream = await ai.models.generateContentStream({
+        model: config.model,
+        contents: analysisPrompt,
+        config: modelConfig
     });
-    const reviewText = await processStreamWithThoughts(reviewStream, parser, onProgress);
+    const analysisText = await processStreamWithThoughts(analysisStream, parser, onProgress);
     onProgress(StreamMessageFinalizing);
-    const reviewJson = JSON.parse(reviewText.trim());
-    const finalResult = { overview: overviewText, review: reviewJson };
+    const finalResult = JSON.parse(analysisText.trim());
     return finalResult;
   } catch (e) {
     throw parseGeminiError(e);
