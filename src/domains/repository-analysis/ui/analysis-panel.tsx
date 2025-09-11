@@ -204,6 +204,7 @@ export const AnalysisPanel: FC = () => {
         <div className="analysis-config">
           <div className="custom-rules">
             <textarea
+              className="input"
               placeholder={PlaceholderCustomInstructions}
               value={analysisConfig.customRules}
               onChange={(e) => setConfig({ customRules: e.target.value })}
@@ -286,7 +287,7 @@ export const AnalysisPanel: FC = () => {
           </div>
           <div className="analysis-actions" style={{ justifyContent: 'flex-end', gap: UI_GAP_SM }}>
             <button
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-secondary"
               onClick={handleGenerateDocs}
               disabled={isAnalysisLoading || isDocLoading || !isRepoLoaded}
               title={TitleGenerateDocs}

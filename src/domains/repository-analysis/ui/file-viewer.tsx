@@ -12,7 +12,7 @@ interface FileViewerProps {
 const syntaxHighlighterStyle: React.CSSProperties = {
   height: '100%',
   margin: 0,
-  borderRadius: 'var(--radius)',
+  borderRadius: 'var(--rounded-app)',
   backgroundColor: 'var(--background)',
   minWidth: 0
 };
