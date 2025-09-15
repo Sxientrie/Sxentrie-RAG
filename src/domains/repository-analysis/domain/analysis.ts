@@ -7,8 +7,9 @@ export enum GEMINI_MODELS {
     PRO = 'gemini-2.5-pro',
 }
 export enum ANALYSIS_TABS {
-    OVERVIEW = 'overview',
-    REVIEW = 'review',
+    EDITOR = 'Editor',
+    OVERVIEW = 'Project Overview',
+    REVIEW = 'Technical Review',
 }
 export enum ANALYSIS_MODES {
   FAST = 'fast',
@@ -19,6 +20,8 @@ export interface AnalysisConfig {
   scope: ANALYSIS_SCOPES;
   model: GEMINI_MODELS;
   mode: ANALYSIS_MODES;
+  includePatterns: string;
+  excludePatterns: string;
 }
 export interface ExplanationStep {
   type: 'text' | 'code';

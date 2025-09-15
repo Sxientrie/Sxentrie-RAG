@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, FC, ReactNode, useContext, useCallback, useEffect, useMemo } from 'react';
-import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES } from '../domain';
+import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES, ANALYSIS_TABS } from '../domain';
 import {
     MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE, ImageFileRegex, LabelLoading,
     LabelPreparingAnalysis, LabelPreparingDocumentation, ImageFileLabelTemplate, ErrorFetchFailedTemplate,
@@ -42,10 +42,12 @@ type RepositoryState = {
   docError: string | null;
   totalAnalyzableFiles: number;
   analysisPreviewPaths: Set<string>;
+  activeTab: string;
 };
 export type RepositoryAction =
   | { type: 'INITIALIZE_STATE'; payload: { repoInfo: RepoInfo, fileTree: GitHubFile[] } }
   | { type: 'SELECT_FILE_START'; payload: { path: string, isImage: boolean, url?: string } }
+  | { type: 'SET_ACTIVE_TAB'; payload: string }
   | { type: 'SELECT_FILE_SUCCESS'; payload: { path: string, content: string, url?: string, isImage: boolean } }
   | { type: 'SELECT_FILE_ERROR'; payload: string }
   | { type: 'SET_SEARCH_TERM'; payload: string }
@@ -71,7 +73,7 @@ const createInitialState = (): RepositoryState => ({
   fileContentCache: new Map(),
   searchTerm: '',
   analysisResults: null,
-  analysisConfig: { customRules: '', scope: ANALYSIS_SCOPES.ALL, model: GEMINI_MODELS.FLASH, mode: ANALYSIS_MODES.FAST },
+  analysisConfig: { customRules: '', scope: ANALYSIS_SCOPES.ALL, model: GEMINI_MODELS.FLASH, mode: ANALYSIS_MODES.FAST, includePatterns: '', excludePatterns: '' },
   isAnalysisLoading: false,
   analysisProgressMessage: '',
   activeLineRange: null,
@@ -84,11 +86,14 @@ const createInitialState = (): RepositoryState => ({
   docError: null,
   totalAnalyzableFiles: 0,
   analysisPreviewPaths: new Set(),
+  activeTab: ANALYSIS_TABS.EDITOR,
 });
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
   switch (action.type) {
     case 'RESET':
       return createInitialState();
+    case 'SET_ACTIVE_TAB':
+        return { ...state, activeTab: action.payload };
     case 'INITIALIZE_STATE': {
       const totalAnalyzableFiles = collectAllFiles(action.payload.fileTree).length;
       return {
@@ -104,6 +109,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
         selectedFile: { path: action.payload.path, content: LabelLoading, isImage: action.payload.isImage, url: action.payload.url },
         error: null,
         activeLineRange: null,
+        activeTab: ANALYSIS_TABS.EDITOR,
       };
     case 'SELECT_FILE_SUCCESS': {
       const newCache = new Map(state.fileContentCache);
@@ -153,6 +159,7 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
         analysisProgressMessage: '',
         analysisResults: action.payload,
         findingsMap: findingsMap,
+        activeTab: ANALYSIS_TABS.OVERVIEW,
       };
     }
     case 'RUN_ANALYSIS_ERROR':

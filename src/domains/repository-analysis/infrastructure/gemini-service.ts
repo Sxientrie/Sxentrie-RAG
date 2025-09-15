@@ -7,20 +7,22 @@ import {
     SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
     LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
     LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
-    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalyzing,
+    // FIX: Corrected typo from StreamMessageAnalyzing to StreamMessageAnalysis.
+    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
     StreamMessageFinalizing, JsonResponseMimeType
 } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
+
 const parseGeminiError = (e: unknown): Error => {
     let friendlyMessage = ErrorGeminiUnknown;
     if (e instanceof Error) {
         const rawMessage = e.message;
         try {
             const jsonMatch = rawMessage.match(JsonRegex);
-            if (jsonMatch && jsonMatch[0]) {
-                const errorObj = JSON.parse(jsonMatch[0]);
+            if (jsonMatch && jsonMatch[1]) {
+                const errorObj = JSON.parse(jsonMatch[1]);
                 if (errorObj?.error?.message) {
                     friendlyMessage = errorObj.error.message;
                 } else {
@@ -71,11 +73,20 @@ async function processStreamWithThoughts(
   return accumulatedText;
 }
 const getApiKey = (): string => {
-  const apiKey = localStorage.getItem(ApiKeyStorageKey);
-  if (!apiKey || !apiKey.trim()) {
-    throw new ApiKeyError(ErrorApiKeyNotFound);
+  const settingsString = localStorage.getItem(ApiKeyStorageKey);
+  if (!settingsString) {
+      throw new ApiKeyError(ErrorApiKeyNotFound);
   }
-  return apiKey;
+  try {
+      const settings = JSON.parse(settingsString);
+      const apiKey = settings.apiKey;
+      if (!apiKey || !apiKey.trim()) {
+          throw new ApiKeyError(ErrorApiKeyNotFound);
+      }
+      return apiKey;
+  } catch (e) {
+      throw new ApiKeyError('Could not parse API key from settings. Please check your settings and save them again.');
+  }
 };
 const getFilesForRequest = (
   fileTree: GitHubFile[],
@@ -266,7 +277,7 @@ export const runCodeAnalysis = async (
       },
     };
     const parser = new ThoughtStreamParser();
-    onProgress(StreamMessageAnalyzing);
+    onProgress(StreamMessageAnalysis);
     const analysisStream = await ai.models.generateContentStream({
         model: config.model,
         contents: analysisPrompt,

@@ -1,22 +1,33 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import { Panel } from '../../../../shared/ui/panel';
-import { SlidersHorizontal, KeyRound, Save, X } from 'lucide-react';
+import { SlidersHorizontal, KeyRound, X } from 'lucide-react';
+import { useSettings } from '../application/settings-context';
 import {
-    ICON_SIZE_SM, ICON_SIZE_MD, UI_COPY_SUCCESS_TIMEOUT_MS, ApiKeyStorageKey, SaveStatusIdle, SaveStatusSaved,
-    LabelSettings, TitleCloseSettings, AriaLabelCloseSettings, LabelApiCredentials, TextApiKeyDescription,
-    PlaceholderGeminiApiKey, LabelSaved, LabelSave
+    ICON_SIZE_SM, UI_COPY_SUCCESS_TIMEOUT_MS, LabelSettings, TitleCloseSettings,
+    AriaLabelCloseSettings, LabelApiCredentials, TextApiKeyDescription, PlaceholderGeminiApiKey,
+    LabelSaved, LabelSave, SaveStatusIdle, SaveStatusSaved
 } from '../../../../shared/config';
+
 interface SettingsPanelProps {
   onClose: () => void;
 }
+
 export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(ApiKeyStorageKey) || '');
+  const { settings, setApiKey } = useSettings();
+  const [localApiKey, setLocalApiKey] = useState(settings.apiKey || '');
   const [saveStatus, setSaveStatus] = useState<typeof SaveStatusIdle | typeof SaveStatusSaved>(SaveStatusIdle);
-  const handleSave = () => {
-      localStorage.setItem(ApiKeyStorageKey, apiKey);
-      setSaveStatus(SaveStatusSaved);
-      setTimeout(() => setSaveStatus(SaveStatusIdle), UI_COPY_SUCCESS_TIMEOUT_MS);
+
+  useEffect(() => {
+    setLocalApiKey(settings.apiKey || '');
+  }, [settings.apiKey]);
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setApiKey(localApiKey.trim() || null);
+    setSaveStatus(SaveStatusSaved);
+    setTimeout(() => setSaveStatus(SaveStatusIdle), UI_COPY_SUCCESS_TIMEOUT_MS);
   };
+
   const panelTitle = <><SlidersHorizontal size={ICON_SIZE_SM} /> {LabelSettings}</>;
   const panelActions = (
     <button
@@ -37,29 +48,28 @@ export const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
         <div className="settings-content">
             <div className="settings-section">
                 <h3 className="settings-section-title">
-                    <KeyRound size={ICON_SIZE_MD} />
+                    <KeyRound size={ICON_SIZE_SM} />
                     <span>{LabelApiCredentials}</span>
                 </h3>
                 <p className="settings-section-description">
                     {TextApiKeyDescription}
                 </p>
-                <div className="input-group">
+                <form onSubmit={handleSave} className="input-group">
                     <input
                         type="password"
-                        className="settings-input input"
+                        className="input settings-input"
                         placeholder={PlaceholderGeminiApiKey}
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
+                        value={localApiKey}
+                        onChange={(e) => setLocalApiKey(e.target.value)}
                     />
                     <button
+                        type="submit"
                         className="btn btn-sm btn-primary"
-                        onClick={handleSave}
-                        disabled={!apiKey.trim()}
+                        disabled={saveStatus === SaveStatusSaved || localApiKey === (settings.apiKey || '')}
                     >
-                       <Save size={ICON_SIZE_SM} />
-                       {saveStatus === SaveStatusSaved ? LabelSaved : LabelSave}
+                        {saveStatus === SaveStatusSaved ? LabelSaved : LabelSave}
                     </button>
-                </div>
+                </form>
             </div>
         </div>
     </Panel>

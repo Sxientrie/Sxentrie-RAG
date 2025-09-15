@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/';
+import { nord } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical, WrapText } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
@@ -138,10 +138,10 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
       );
     }
     return (
-        <>
+        <div className="placeholder">
             <MousePointerClick size={ICON_SIZE_XL} strokeWidth={1} />
             <p>Select a file from the list on the left to view its content.</p>
-        </>
+        </div>
     );
   }, [isRepoLoaded]);
   const getLineProps = useCallback((lineNumber: number) => {
@@ -157,21 +157,25 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
     }
     return {};
   }, [selectedFile, findingsMap]);
+
+  if (!selectedFile) {
+    return <Panel className="file-viewer-panel">{renderPlaceholder()}</Panel>
+  }
+
   return (
     <Panel
         className="file-viewer-panel"
         title={panelTitle}
         actions={panelActions}
     >
-      {selectedFile ? (
-        selectedFile.isImage && selectedFile.url ? (
+      {selectedFile.isImage && selectedFile.url ? (
             <div className="image-viewer-container">
               <img src={selectedFile.url} alt={selectedFile.path} className="image-preview" />
             </div>
         ) : (
             <SyntaxHighlighter
               language={getLanguage(selectedFile.path)}
-              style={vscDarkPlus}
+              style={nord}
               showLineNumbers
               wrapLines={true}
               lineProps={getLineProps}
@@ -184,11 +188,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
               {selectedFile.content}
             </SyntaxHighlighter>
         )
-      ) : (
-        <div className="placeholder">
-           {renderPlaceholder()}
-        </div>
-      )}
+      }
     </Panel>
   );
 };

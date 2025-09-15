@@ -1,7 +1,8 @@
 import { jwtVerify } from 'jose';
+import { SESSION_COOKIE_NAME } from './_constants';
 import {
     HTTP_STATUS_OK, HTTP_STATUS_UNAUTHORIZED, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorConfig,
-    HttpHeaderCookie, ErrorNotAuthenticated, Semicolon, Equals, SESSION_COOKIE_NAME,
+    HttpHeaderCookie, ErrorNotAuthenticated, Semicolon, Equals,
     ErrorInvalidSession, HttpHeaderContentType, JsonResponseMimeType
 } from '../shared/config';
 interface ServerlessRequest {
