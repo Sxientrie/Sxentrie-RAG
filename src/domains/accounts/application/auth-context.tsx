@@ -67,7 +67,7 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
             dispatch({ type: 'SESSION_CHECK_COMPLETE' });
         }
     };
-    checkSession();
+    // checkSession();
   }, []);
   const login = useCallback(() => {
     dispatch({ type: 'LOGIN_START' });
