@@ -4,6 +4,7 @@ import {
     MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR,
     GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
     JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
+    ErrorCouldNotParseApiKey,
     SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
     LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
     LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
@@ -85,7 +86,7 @@ const getApiKey = (): string => {
       }
       return apiKey;
   } catch (e) {
-      throw new ApiKeyError('Could not parse API key from settings. Please check your settings and save them again.');
+      throw new ApiKeyError(ErrorCouldNotParseApiKey);
   }
 };
 const getFilesForRequest = (

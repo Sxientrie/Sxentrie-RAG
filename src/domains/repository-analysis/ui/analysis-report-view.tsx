@@ -10,7 +10,8 @@ import { nord } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import {
     ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD, CssFontFamilyMono, CssTransparent,
-    TitleDismissFinding, LabelNoIssuesFound, LabelHiddenFindingsCountTemplate, UI_COPY_SUCCESS_TIMEOUT_MS
+    TitleDismissFinding, LabelNoIssuesFound, LabelHiddenFindingsCountTemplate, UI_COPY_SUCCESS_TIMEOUT_MS,
+    ErrorFailedToCopyMarkdown
 } from '../../../../shared/config';
 
 const codeViewerStyle = {
@@ -66,7 +67,7 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), UI_COPY_SUCCESS_TIMEOUT_MS);
     } catch (err) {
-        console.error("Failed to copy markdown to clipboard:", err);
+        console.error(ErrorFailedToCopyMarkdown, err);
     }
   }, [finding]);
 

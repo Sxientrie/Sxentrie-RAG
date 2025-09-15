@@ -1,5 +1,12 @@
 import { GitHubFile, RepoInfo } from '../domain';
 import { ApiError } from '../../../../shared/errors/api-error';
+import {
+    ErrorRepositoryNotFound,
+    ErrorGitHubApiRateLimitExceeded,
+    ErrorGitHubApi,
+    ErrorCouldNotDetermineDefaultBranch,
+    ErrorDefaultBranchNotFound,
+} from '../../../../shared/config';
 interface GitHubTreeItem {
   path: string;
   type: 'blob' | 'tree' | 'commit';
@@ -23,20 +30,20 @@ export const parseGitHubUrl = (url: string): RepoInfo | null => {
 export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
   const repoDetailsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
   if (!repoDetailsResponse.ok) {
-    if (repoDetailsResponse.status === 404) throw new ApiError('Repository not found.');
-    if (repoDetailsResponse.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait and try again.');
-    throw new ApiError(`GitHub API Error: ${repoDetailsResponse.statusText}`);
+    if (repoDetailsResponse.status === 404) throw new ApiError(ErrorRepositoryNotFound);
+    if (repoDetailsResponse.status === 403) throw new ApiError(ErrorGitHubApiRateLimitExceeded);
+    throw new ApiError(ErrorGitHubApi.replace('{0}', repoDetailsResponse.statusText));
   }
   const repoDetails = await repoDetailsResponse.json();
   const defaultBranch = repoDetails.default_branch;
   if (!defaultBranch) {
-    throw new ApiError('Could not determine the default branch for this repository.');
+    throw new ApiError(ErrorCouldNotDetermineDefaultBranch);
   }
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`);
   if (!response.ok) {
-    if (response.status === 404) throw new ApiError(`Default branch '${defaultBranch}' not found or repository is empty.`);
-    if (response.status === 403) throw new ApiError('GitHub API rate limit exceeded. Please wait and try again.');
-    throw new ApiError(`GitHub API Error: ${response.statusText}`);
+    if (response.status === 404) throw new ApiError(ErrorDefaultBranchNotFound.replace('{0}', defaultBranch));
+    if (response.status === 403) throw new ApiError(ErrorGitHubApiRateLimitExceeded);
+    throw new ApiError(ErrorGitHubApi.replace('{0}', response.statusText));
   }
   const { tree } = await response.json();
   const buildFileTree = (files: GitHubTreeItem[]): GitHubFile[] => {
