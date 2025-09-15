@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useRepository } from './repository-context';
-import { runCodeAnalysis, generateDocumentation } from '../infrastructure/gemini-service';
+// FIX: Alias the imported function to prevent a naming conflict and recursive call.
+import { runCodeAnalysis, generateDocumentation as generateDocumentationApi } from '../infrastructure/gemini-service';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ErrorUnknownDocGen } from '../../../../shared/config';
 
@@ -44,7 +45,7 @@ export const useApiClient = () => {
     }
     dispatch({ type: 'RUN_DOC_GEN_START' });
     try {
-        const doc = await generateDocumentation({
+        const doc = await generateDocumentationApi({
             repoName: repoInfo.repo,
             fileTree,
             config: analysisConfig,

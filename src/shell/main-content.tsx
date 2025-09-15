@@ -9,7 +9,7 @@ import {
     ReportScopeRepo, ReportModeTemplate, ReportCustomDirectivesTemplate, ReportNoCustomDirectives,
     ReportOverviewHeader, ReportReviewHeader, ReportNoIssuesFound, ReportSummaryTableHeader,
     ReportSummaryTableRowTemplate, ReportDetailsHeader, ReportFindingHeaderTemplate, ReportDetailsTableHeader,
-    ReportDetailsTableRowTemplate, ReportLineRangeTemplate, ReportNotApplicable, ReportQuoteTemplate,
+    ReportDetailsTableRowTemplate, ReportLineRangeTemplate, ReportNotApplicable,
     ReportCodeBlockTemplate, ReportFileNameTemplate, TitleShowDismissedFindingsTemplate, AriaLabelRestoreDismissed,
     TitleDownloadReport, AriaLabelDownloadReport
 } from '../../shared/config';
@@ -55,7 +55,11 @@ export const MainContent: FC = () => {
         } else {
           const summaryTable = [
             ReportSummaryTableHeader,
-            ...findings.map(f => ReportSummaryTableRowTemplate.replace('{0}', f.severity).replace('{1}', f.finding).replace('{2}', f.fileName)).join('\n'),
+            ...findings.map(f => ReportSummaryTableRowTemplate
+                .replace('{0}', f.severity)
+                .replace('{1}', f.finding.replace(/\|/g, '\\|')) // Sanitize pipe characters
+                .replace('{2}', f.fileName)
+            ).join('\n'),
           ].join('\n');
           reportParts.push(summaryTable);
           reportParts.push(`\n\n${ReportHorizontalRule}\n`);
@@ -73,13 +77,12 @@ export const MainContent: FC = () => {
             reportParts.push('\n\n');
             finding.explanation.forEach(step => {
               if (step.type === 'text') {
-                reportParts.push(ReportQuoteTemplate.replace('{0}', step.content));
+                reportParts.push(`${step.content}\n\n`);
               } else if (step.type === 'code') {
                 const language = getLanguage(finding.fileName);
                 reportParts.push(ReportCodeBlockTemplate.replace('{0}', language).replace('{1}', step.content));
               }
             });
-            reportParts.push(`\n`);
           });
         }
         const md = reportParts.join('');
@@ -98,7 +101,7 @@ export const MainContent: FC = () => {
       const tabs = [
         { title: 'Editor', content: <FileViewer onError={onError} /> },
         { title: ANALYSIS_TABS.OVERVIEW, content: (
-            <div className="panel-content markdown-content" aria-live="polite">
+            <div className="tab-content markdown-content" aria-live="polite">
                 {analysisResults ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResults.overview}</ReactMarkdown> : <div className="placeholder"><p>Run an analysis to see the project overview.</p></div>}
             </div>
         )},

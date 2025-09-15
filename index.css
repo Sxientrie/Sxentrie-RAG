@@ -753,6 +753,11 @@
     gap: 0.75rem;
     min-width: 0;
   }
+  .finding-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
   .review-finding-header .clickable-filepath {
     background: none;
     border: none;

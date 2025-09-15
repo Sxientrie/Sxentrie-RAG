@@ -151,7 +151,7 @@ export const ListItemPrefixRegex = /^[-*\d+\.]\s*/;
 export const SentenceEndRegex = /[.!?]$/;
 export const SentenceSplitRegex = /(?<=[.!?])\s+/;
 export const ReportHeaderTemplate = '# Sxentrie Analysis Report for {0}\n\n';
-export const ReportRepoUrlTemplate = '**Repository:** https://github.com/{0}/{1}\n';
+export const ReportRepoUrlTemplate = '**Repository:** https://github.com/{0}/{1}\n\n';
 export const ReportDateTemplate = '**Report Generated:** {0}\n\n';
 export const ReportHorizontalRule = '---\n';
 export const ReportConfigHeader = '## Analysis Configuration\n\n';

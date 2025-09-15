@@ -242,6 +242,11 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
   }, [repoInfo, fileTree]);
   const handleFileClick = useCallback(async (file: GitHubFile): Promise<void> => {
     const isImage = isImagePath(file.path);
+    dispatch({ type: 'SELECT_FILE_START', payload: { path: file.path, isImage: isImage, url: file.download_url || undefined } });
+    const firstFinding = state.analysisResults?.review.find(f => f.fileName === file.path);
+    const lineRangeToActivate = (firstFinding && firstFinding.startLine && firstFinding.endLine)
+      ? { start: firstFinding.startLine, end: firstFinding.endLine }
+      : null;
     if (isImage && file.download_url) {
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: ImageFileLabelTemplate.replace('{0}', file.path), url: file.download_url, isImage: true } });
       return;
@@ -249,9 +254,11 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
     if (!file.download_url) return;
     if (state.fileContentCache.has(file.path)) {
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: state.fileContentCache.get(file.path)!, isImage: false, url: file.download_url } });
+      if (lineRangeToActivate) {
+        dispatch({ type: 'SET_ACTIVE_LINE_RANGE', payload: lineRangeToActivate });
+      }
       return;
     }
-    dispatch({ type: 'SELECT_FILE_START', payload: { path: file.path, isImage: false, url: file.download_url } });
     try {
       const response = await fetch(file.download_url);
       if (!response.ok) throw new Error(ErrorFetchFailedTemplate.replace('{0}', response.statusText));
@@ -260,12 +267,15 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
         ? text.substring(0, MAX_DISPLAY_FILE_SIZE) + TRUNCATED_DISPLAY_MESSAGE
         : text;
       dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: cappedText, isImage: false, url: file.download_url } });
+      if (lineRangeToActivate) {
+        dispatch({ type: 'SET_ACTIVE_LINE_RANGE', payload: lineRangeToActivate });
+      }
     } catch (err) {
       const message = err instanceof Error ? ErrorCouldNotLoadFileContentTemplate.replace('{0}', err.message) : ErrorCouldNotLoadFileContent;
       dispatch({ type: 'SELECT_FILE_ERROR', payload: message });
       onError(message);
     }
-  }, [state.fileContentCache, onError, dispatch]);
+  }, [state.fileContentCache, state.analysisResults, onError, dispatch]);
   const selectFileByPath = useCallback((path: string): void => {
     const file = findFileInTree(path, state.fileTree);
     if (file) {

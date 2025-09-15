@@ -159,6 +159,16 @@ export const generateDocumentation = async (
     3.  **Format Output:** Assemble the extracted information into a single, complete JSDoc/TSDoc comment block that immediately precedes the code it documents. Strictly follow the format shown in the \`<ExampleDocumentation>\`. Generate ONLY the comment block, with no other text or explanation.
   </Instructions>
   <ExampleDocumentation>
+/**
+ * Fetches the repository tree from the GitHub API.
+ * @param {string} owner - The owner of the repository.
+ * @param {string} repo - The name of the repository.
+ * @returns {Promise<GitHubFile[]>} A promise that resolves with the file tree.
+ * @throws {ApiError} If the repository is not found or if the API rate limit is exceeded.
+ */
+export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
+  // ... function implementation
+}
   </ExampleDocumentation>
   <CodeToDocument>
     ${fileContentsString}
@@ -209,10 +219,14 @@ export const runCodeAnalysis = async (
     if (!fileContentsString.trim()) {
         throw new Error(ErrorCouldNotFetchContent);
     }
+    const customFocus = config.customRules
+        ? `You have been given a special directive for this review: "${config.customRules}". You must place a strong emphasis on this directive during your analysis.`
+        : `Your analysis should be comprehensive, covering a wide range of potential issues from security to maintainability.`;
+
     const analysisPrompt = `
 <CodeAnalysisRequest>
   <Persona>
-    You are an expert Principal Software Architect and code reviewer. Your expertise lies in analyzing complex codebases, identifying architectural patterns, and conducting thorough, actionable code reviews. You communicate findings clearly and concisely.
+    You are an expert Principal Software Architect and code reviewer. Your expertise lies in analyzing complex codebases, identifying architectural patterns, and conducting thorough, actionable code reviews. You communicate findings clearly and concisely. ${customFocus}
   </Persona>
   <Instructions>
     Your task is to perform a comprehensive analysis of the provided source code and return a single, valid JSON object. This JSON object must contain two top-level properties: "overview" and "review".
@@ -223,10 +237,16 @@ export const runCodeAnalysis = async (
         *   Assign this Markdown string to the "overview" property of the final JSON object.
 
     2.  **Generate Detailed Technical Review (review):**
-        *   Conduct a thorough review of the code, identifying potential bugs, security vulnerabilities, performance bottlenecks, and areas for improvement.
-        *   For each finding, determine the file, line number(s), severity ("Critical", "High", "Medium", "Low"), and a clear explanation with an actionable suggestion.
-        *   Format all findings into a JSON array of objects, where each object represents a single finding.
-        *   Assign this array to the "review" property of the final JSON object.
+        *   Conduct a thorough, step-by-step review of the code, identifying potential bugs, security vulnerabilities, performance bottlenecks, and areas for improvement.
+        *   For each issue you identify, you MUST construct a logical, narrative explanation within the \`explanation\` array. This narrative should follow a "Problem -> Solution" structure.
+        *   **Explanation Structure:**
+            1.  Start with a \`text\` part that clearly describes the problem.
+            2.  Follow immediately with a \`code\` part showing the problematic line(s) of code.
+            3.  Add another \`text\` part explaining the recommended solution and best practice.
+            4.  Conclude with a \`code\` part showing the corrected, secure, or optimized version of the code.
+        *   This alternating \`text\`/\`code\` structure is mandatory for creating a clear, easy-to-follow review.
+        *   Assign a \`severity\` ("Critical", "High", "Medium", "Low") based on the potential impact of the issue.
+        *   Format all findings into a JSON array of \`Finding\` objects and assign this array to the "review" property. If no issues are found, return an empty array.
 
     The final output MUST be a single, valid JSON object that strictly adheres to the 'response_schema' provided in the API call. Do not include any text, markdown, or explanation outside of this JSON object.
   </Instructions>

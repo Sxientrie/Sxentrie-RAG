@@ -17,10 +17,18 @@ export default async function handler(request: ServerlessRequest) {
   if (!cookieHeader) {
     return new Response(JSON.stringify({ error: ErrorNotAuthenticated }), { status: HTTP_STATUS_UNAUTHORIZED });
   }
-  const cookies = Object.fromEntries(cookieHeader.split(Semicolon).map(c => {
-    const parts = c.trim().split(Equals, 2);
-    return [parts[0], parts[1] || ''];
-  }));
+  const cookies = Object.fromEntries(
+    cookieHeader.split(Semicolon).map(c => {
+      const trimmedCookie = c.trim();
+      const eqIndex = trimmedCookie.indexOf(Equals);
+      if (eqIndex === -1) {
+        return [trimmedCookie, ''];
+      }
+      const key = trimmedCookie.substring(0, eqIndex);
+      const value = trimmedCookie.substring(eqIndex + 1);
+      return [key, value];
+    })
+  );
   const sessionJwt = cookies[SESSION_COOKIE_NAME];
   if (!sessionJwt) {
     return new Response(JSON.stringify({ error: ErrorNotAuthenticated }), { status: HTTP_STATUS_UNAUTHORIZED });

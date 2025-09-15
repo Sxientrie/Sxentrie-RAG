@@ -2,7 +2,7 @@ import React, { FC, useState, useCallback, useMemo } from 'react';
 import { AnalysisResults, TechnicalReviewFinding, ANALYSIS_TABS } from '../domain';
 import { useRepository } from '../application/repository-context';
 import { RepositoryAction } from '../application/repository-context';
-import { FileCheck2, X } from 'lucide-react';
+import { FileCheck2, X, ClipboardCopy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,8 +10,9 @@ import { nord } from 'react-syntax-highlighter/dist/esm/styles/prism/';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import {
     ICON_SIZE_SM, ICON_SIZE_XL, UI_FONT_SIZE_SM, UI_FONT_SIZE_MD, CssFontFamilyMono, CssTransparent,
-    TitleDismissFinding, LabelNoIssuesFound, LabelHiddenFindingsCountTemplate
+    TitleDismissFinding, LabelNoIssuesFound, LabelHiddenFindingsCountTemplate, UI_COPY_SUCCESS_TIMEOUT_MS
 } from '../../../../shared/config';
+
 const codeViewerStyle = {
   ...nord,
   'code[class*="language-"]': {
@@ -24,6 +25,7 @@ const codeViewerStyle = {
     backgroundColor: CssTransparent,
   }
 };
+
 interface FindingProps {
   finding: TechnicalReviewFinding;
   onFileSelect: (path: string) => void;
@@ -31,8 +33,43 @@ interface FindingProps {
   id: string;
   onDismiss: (id: string) => void;
 }
+
 const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDismiss }) => {
+  const [isCopied, setIsCopied] = useState(false);
   const language = getLanguage(finding.fileName);
+
+  const handleCopyToClipboard = useCallback(async () => {
+    const lines = finding.startLine && finding.endLine ? `${finding.startLine}-${finding.endLine}` : 'N/A';
+
+    const markdownParts = [
+        `### ${finding.finding}`,
+        ``,
+        `| Severity | File | Line(s) |`,
+        `|:---|:---|:---|`,
+        `| ${finding.severity} | \`${finding.fileName}\` | ${lines} |`,
+        ``,
+        ...finding.explanation.map(step => {
+            if (step.type === 'text') {
+                return step.content;
+            }
+            if (step.type === 'code') {
+                const codeLang = getLanguage(finding.fileName);
+                return `\`\`\`${codeLang}\n${step.content}\n\`\`\``;
+            }
+            return '';
+        })
+    ];
+    const markdownString = markdownParts.join('\n');
+
+    try {
+        await navigator.clipboard.writeText(markdownString);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), UI_COPY_SUCCESS_TIMEOUT_MS);
+    } catch (err) {
+        console.error("Failed to copy markdown to clipboard:", err);
+    }
+  }, [finding]);
+
   const handleClick = useCallback(() => {
     onFileSelect(finding.fileName);
     if (finding.startLine && finding.endLine) {
@@ -45,6 +82,7 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
     }
     dispatch({ type: 'SET_ACTIVE_TAB', payload: ANALYSIS_TABS.EDITOR });
   }, [onFileSelect, finding.fileName, finding.startLine, finding.endLine, dispatch]);
+
   return (
     <div className="review-finding">
       <div className="review-finding-header">
@@ -54,14 +92,25 @@ const Finding: FC<FindingProps> = ({ finding, onFileSelect, dispatch, id, onDism
               {finding.fileName}
             </button>
         </div>
-        <button
-          className="panel-action-btn"
-          onClick={() => onDismiss(id)}
-          title={TitleDismissFinding}
-          aria-label={TitleDismissFinding}
-        >
-          <X size={ICON_SIZE_SM} />
-        </button>
+        <div className="finding-header-actions">
+            <button
+              className="panel-action-btn"
+              onClick={handleCopyToClipboard}
+              title={isCopied ? "Copied!" : "Copy as markdown"}
+              aria-label="Copy finding as markdown"
+              disabled={isCopied}
+            >
+              {isCopied ? <Check size={ICON_SIZE_SM} color="var(--primary)" /> : <ClipboardCopy size={ICON_SIZE_SM} />}
+            </button>
+            <button
+              className="panel-action-btn"
+              onClick={() => onDismiss(id)}
+              title={TitleDismissFinding}
+              aria-label={TitleDismissFinding}
+            >
+              <X size={ICON_SIZE_SM} />
+            </button>
+        </div>
       </div>
       <div className="review-finding-body markdown-content">
         <h4>{finding.finding}</h4>
