@@ -3,7 +3,7 @@ import { useRepository } from './repository-context';
 // FIX: Alias the imported function to prevent a naming conflict and recursive call.
 import { runCodeAnalysis, generateDocumentation as generateDocumentationApi } from '../infrastructure/gemini-service';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
-import { ErrorUnknownDocGen } from '../../../../shared/config';
+import { ErrorUnknownDocGen, ErrorRepositoryNotLoaded, ErrorUnknownAnalysis, ErrorDocGenRepositoryNotLoaded } from '../../../../shared/config';
 
 export const useApiClient = () => {
   const { state, dispatch, openSettingsPanel, onError } = useRepository();
@@ -11,7 +11,7 @@ export const useApiClient = () => {
 
   const runAnalysis = useCallback(async (): Promise<void> => {
     if (!repoInfo) {
-      const errorMessage = "A repository must be loaded before running analysis.";
+      const errorMessage = ErrorRepositoryNotLoaded;
       dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: errorMessage });
       if (onError) onError(errorMessage);
       return;
@@ -30,7 +30,7 @@ export const useApiClient = () => {
       if (err instanceof ApiKeyError && openSettingsPanel) {
         openSettingsPanel();
       }
-      const message = err instanceof Error ? err.message : "An unknown error occurred during analysis.";
+      const message = err instanceof Error ? err.message : ErrorUnknownAnalysis;
       dispatch({ type: 'RUN_ANALYSIS_ERROR', payload: message });
       if (onError) onError(message);
     }
@@ -38,7 +38,7 @@ export const useApiClient = () => {
 
   const generateDocumentation = useCallback(async (): Promise<void> => {
     if (!repoInfo) {
-        const errorMessage = "A repository must be loaded before generating documentation.";
+        const errorMessage = ErrorDocGenRepositoryNotLoaded;
         dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: errorMessage });
         if (onError) onError(errorMessage);
         return;

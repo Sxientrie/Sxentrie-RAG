@@ -5,7 +5,11 @@ import { Panel } from '../../../../shared/ui/panel';
 import { FileCode2, ClipboardCopy, Download, Check, MousePointerClick, Github, Play, FlaskConical, WrapText } from 'lucide-react';
 import { getLanguage } from '../../../../shared/lib/get-language';
 import { useRepository } from '../application/repository-context';
-import { UI_COPY_SUCCESS_TIMEOUT_MS, UI_DEBOUNCE_DELAY_MS, DEFAULT_DOWNLOAD_FILENAME, GENERIC_FILE_MIMETYPE, ICON_SIZE_SM, ICON_SIZE_MD, ICON_SIZE_XL, UI_FONT_SIZE_SM } from '../../../../shared/config';
+import {
+    UI_COPY_SUCCESS_TIMEOUT_MS, UI_DEBOUNCE_DELAY_MS, DEFAULT_DOWNLOAD_FILENAME, GENERIC_FILE_MIMETYPE,
+    ICON_SIZE_SM, ICON_SIZE_MD, ICON_SIZE_XL, UI_FONT_SIZE_SM, ErrorFailedToCopy, ErrorNetworkResponseNotOk,
+    ErrorFailedToDownload
+} from '../../../../shared/config';
 interface FileViewerProps {
   onError: (message: string) => void;
 }
@@ -39,7 +43,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), UI_COPY_SUCCESS_TIMEOUT_MS);
     } catch (err) {
-        onError('Failed to copy file content to clipboard.');
+        onError(ErrorFailedToCopy);
     }
   }, [selectedFile, onError]);
   const handleDownload = useCallback(async (): Promise<void> => {
@@ -49,7 +53,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
       try {
         if (selectedFile.isImage && selectedFile.url) {
             const response = await fetch(selectedFile.url);
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) throw new Error(ErrorNetworkResponseNotOk);
             blob = await response.blob();
         } else {
             blob = new Blob([selectedFile.content], { type: GENERIC_FILE_MIMETYPE });
@@ -64,7 +68,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
             window.URL.revokeObjectURL(link.href);
         }
       } catch (error) {
-          onError('Failed to download file. An unexpected error occurred.');
+          onError(ErrorFailedToDownload);
       }
   }, [selectedFile, onError]);
   const toggleWrap = useCallback(() => setIsWrapEnabled(p => !p), []);
