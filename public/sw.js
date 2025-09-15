@@ -2,7 +2,6 @@ const CACHE_NAME = 'sxentrie-cache-v2';
 const urlsToCache = [
   './',
   './index.html',
-  './index.tsx',
   './manifest.json',
 ];
 
