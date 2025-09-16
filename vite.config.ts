@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
       base: '/Sxentrie-RAG/',
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.VITE_BUILD_TIMESTAMP': JSON.stringify(new Date().toISOString())
       },
       resolve: {
         alias: {
