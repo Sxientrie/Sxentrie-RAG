@@ -375,3 +375,102 @@
     font-size: 0.8rem;
     background-color: var(--background);
 }
+
+/* Review Finding Styles */
+.review-finding {
+    border: 1px solid var(--border);
+    border-radius: var(--rounded-app);
+    background-color: var(--card);
+    overflow: hidden;
+    transition: all 0.2s ease;
+    margin-bottom: 0.5rem;
+}
+
+.review-finding.expanded {
+    border-color: var(--border-active);
+}
+
+.review-finding-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    background-color: var(--surface);
+    border-bottom: 1px solid transparent;
+    transition: background-color 0.2s ease;
+}
+
+.review-finding.expanded .review-finding-header {
+    border-bottom-color: var(--border);
+}
+
+.review-finding-header:hover {
+    background-color: var(--surface-hover);
+}
+
+.finding-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.finding-title {
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--foreground);
+}
+
+.finding-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.clickable-filepath {
+    background: none;
+    border: none;
+    color: var(--muted-foreground);
+    font-family: var(--font-family-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.clickable-filepath:hover {
+    background-color: var(--surface-hover);
+    color: var(--foreground);
+}
+
+.action-divider {
+    width: 1px;
+    height: 16px;
+    background-color: var(--border);
+    margin: 0 0.25rem;
+}
+
+.review-finding-body {
+    padding: 1rem;
+    background-color: var(--background);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.expand-toggle {
+    background: none;
+    border: none;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}

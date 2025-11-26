@@ -1,4 +1,4 @@
-import React, { FC, useCallback } from "react";
+import React, { FC, useCallback, useEffect } from "react";
 import { useRepository } from "../domains/repository-analysis/application/repository-context";
 import { Panel } from "../../shared/ui/panel";
 import { Download, RotateCw } from 'lucide-react';
@@ -18,7 +18,7 @@ import { getLanguage } from "../../shared/lib/get-language";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { FileViewer } from "../domains/repository-analysis/ui/file-viewer";
-// Fix: Moved ANALYSIS_SCOPES import from shared/config to its correct location in the domain types.
+import { OverviewPanel } from "../domains/repository-analysis/ui/overview-panel";
 import { ANALYSIS_TABS, ANALYSIS_SCOPES } from "../domains/repository-analysis/domain";
 
 export const MainContent: FC = () => {
@@ -102,8 +102,12 @@ export const MainContent: FC = () => {
     { title: 'Editor', content: <FileViewer onError={onError} /> },
     {
       title: ANALYSIS_TABS.OVERVIEW, content: (
-        <div className="tab-content markdown-content" aria-live="polite">
-          {analysisResults ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysisResults.overview}</ReactMarkdown> : <div className="placeholder"><p>Run an analysis to see the project overview.</p></div>}
+        <div className="tab-content" aria-live="polite" style={{ height: '100%' }}>
+          {analysisResults ? (
+            <OverviewPanel content={analysisResults.overview} onError={onError} />
+          ) : (
+            <div className="placeholder"><p>Run an analysis to see the project overview.</p></div>
+          )}
         </div>
       )
     },
@@ -164,4 +168,4 @@ export const MainContent: FC = () => {
       {visibleTabs[activeTabIndex].content}
     </Panel>
   );
-}
+};

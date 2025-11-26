@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
 import { useRepository } from './repository-context';
-// FIX: Alias the imported function to prevent a naming conflict and recursive call.
-import { runCodeAnalysis, generateDocumentation as generateDocumentationApi } from '../infrastructure/gemini-service';
+import { runCodeAnalysis } from '../infrastructure/gemini-service';
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
-import { ErrorUnknownDocGen, ErrorRepositoryNotLoaded, ErrorUnknownAnalysis, ErrorDocGenRepositoryNotLoaded } from '../../../../shared/config';
+import { ErrorRepositoryNotLoaded, ErrorUnknownAnalysis } from '../../../../shared/config';
 
 export const useApiClient = () => {
   const { state, dispatch, openSettingsPanel, onError } = useRepository();
@@ -36,32 +35,5 @@ export const useApiClient = () => {
     }
   }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
 
-  const generateDocumentation = useCallback(async (): Promise<void> => {
-    if (!repoInfo) {
-      const errorMessage = ErrorDocGenRepositoryNotLoaded;
-      dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: errorMessage });
-      if (onError) onError(errorMessage);
-      return;
-    }
-    dispatch({ type: 'RUN_DOC_GEN_START' });
-    try {
-      const doc = await generateDocumentationApi({
-        repoName: repoInfo.repo,
-        fileTree,
-        config: analysisConfig,
-        selectedFile,
-        onProgress: (msg) => dispatch({ type: 'SET_DOC_GEN_PROGRESS', payload: msg })
-      });
-      dispatch({ type: 'RUN_DOC_GEN_SUCCESS', payload: doc });
-    } catch (err) {
-      if (err instanceof ApiKeyError && openSettingsPanel) {
-        openSettingsPanel();
-      }
-      const message = err instanceof Error ? err.message : ErrorUnknownDocGen;
-      dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
-      if (onError) onError(message);
-    }
-  }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
-
-  return { runAnalysis, generateDocumentation };
+  return { runAnalysis };
 };

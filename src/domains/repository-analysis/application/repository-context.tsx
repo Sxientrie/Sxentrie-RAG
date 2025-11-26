@@ -2,12 +2,14 @@ import React, { createContext, useReducer, FC, ReactNode, useContext, useCallbac
 import { GitHubFile, RepoInfo, ANALYSIS_SCOPES, AnalysisResults, AnalysisConfig, GEMINI_MODELS, TechnicalReviewFinding, ANALYSIS_MODES, ANALYSIS_TABS } from '../domain';
 import {
     MAX_DISPLAY_FILE_SIZE, MAX_FILE_CACHE_SIZE, TRUNCATED_DISPLAY_MESSAGE, ImageFileRegex, LabelLoading,
-    LabelPreparingAnalysis, LabelPreparingDocumentation, ImageFileLabelTemplate, ErrorFetchFailedTemplate,
+    LabelPreparingAnalysis, ImageFileLabelTemplate, ErrorFetchFailedTemplate,
     ErrorCouldNotLoadFileContentTemplate, ErrorCouldNotLoadFileContent, ErrorFileNotFoundTemplate,
     ErrorUseRepositoryOutsideProvider
 } from '../../../../shared/config';
 import { collectAllFiles } from './file-tree-utils';
+
 const isImagePath = (path: string): boolean => ImageFileRegex.test(path);
+
 const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => {
     for (const node of tree) {
         if (node.path === path) {
@@ -22,6 +24,7 @@ const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => 
     }
     return null;
 };
+
 type RepositoryState = {
     repoInfo: RepoInfo | null;
     fileTree: GitHubFile[];
@@ -36,14 +39,11 @@ type RepositoryState = {
     findingsMap: Map<string, Map<number, TechnicalReviewFinding>>;
     dismissedFindings: Set<string>;
     error: string | null;
-    isDocLoading: boolean;
-    docProgressMessage: string;
-    generatedDoc: string | null;
-    docError: string | null;
     totalAnalyzableFiles: number;
     analysisPreviewPaths: Set<string>;
     activeTab: string;
 };
+
 export type RepositoryAction =
     | { type: 'INITIALIZE_STATE'; payload: { repoInfo: RepoInfo, fileTree: GitHubFile[] } }
     | { type: 'SELECT_FILE_START'; payload: { path: string, isImage: boolean, url?: string } }
@@ -60,12 +60,8 @@ export type RepositoryAction =
     | { type: 'DISMISS_FINDING'; payload: string }
     | { type: 'RESET_DISMISSED_FINDINGS' }
     | { type: 'RESET' }
-    | { type: 'RUN_DOC_GEN_START' }
-    | { type: 'SET_DOC_GEN_PROGRESS'; payload: string }
-    | { type: 'RUN_DOC_GEN_SUCCESS'; payload: string }
-    | { type: 'RUN_DOC_GEN_ERROR'; payload: string }
-    | { type: 'CLEAR_DOC' }
     | { type: 'SET_ANALYSIS_PREVIEW_PATHS'; payload: Set<string> };
+
 const createInitialState = (): RepositoryState => ({
     repoInfo: null,
     fileTree: [],
@@ -80,14 +76,11 @@ const createInitialState = (): RepositoryState => ({
     findingsMap: new Map(),
     dismissedFindings: new Set(),
     error: null,
-    isDocLoading: false,
-    docProgressMessage: '',
-    generatedDoc: null,
-    docError: null,
     totalAnalyzableFiles: 0,
     analysisPreviewPaths: new Set(),
     activeTab: ANALYSIS_TABS.EDITOR,
 });
+
 const repositoryReducer = (state: RepositoryState, action: RepositoryAction): RepositoryState => {
     switch (action.type) {
         case 'RESET':
@@ -138,8 +131,6 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
                 analysisResults: null,
                 findingsMap: new Map(),
                 dismissedFindings: new Set(),
-                generatedDoc: null,
-                docError: null,
             };
         case 'SET_ANALYSIS_PROGRESS':
             return { ...state, analysisProgressMessage: action.payload };
@@ -177,44 +168,13 @@ const repositoryReducer = (state: RepositoryState, action: RepositoryAction): Re
         }
         case 'RESET_DISMISSED_FINDINGS':
             return { ...state, dismissedFindings: new Set() };
-        case 'RUN_DOC_GEN_START':
-            return {
-                ...state,
-                isDocLoading: true,
-                docProgressMessage: LabelPreparingDocumentation,
-                generatedDoc: null,
-                docError: null,
-                analysisResults: null,
-                error: null,
-            };
-        case 'SET_DOC_GEN_PROGRESS':
-            return { ...state, docProgressMessage: action.payload };
-        case 'RUN_DOC_GEN_SUCCESS':
-            return {
-                ...state,
-                isDocLoading: false,
-                generatedDoc: action.payload,
-            };
-        case 'RUN_DOC_GEN_ERROR':
-            return {
-                ...state,
-                isDocLoading: false,
-                docError: action.payload,
-            };
-        case 'CLEAR_DOC':
-            return {
-                ...state,
-                isDocLoading: false,
-                docProgressMessage: '',
-                generatedDoc: null,
-                docError: null,
-            };
         case 'SET_ANALYSIS_PREVIEW_PATHS':
             return { ...state, analysisPreviewPaths: action.payload };
         default:
             return state;
     }
 };
+
 type RepositoryContextType = {
     state: RepositoryState;
     dispatch: React.Dispatch<RepositoryAction>;
@@ -223,7 +183,9 @@ type RepositoryContextType = {
     onError: (message: string) => void;
     openSettingsPanel?: () => void;
 };
+
 const RepositoryContext = createContext<RepositoryContextType | undefined>(undefined);
+
 interface RepositoryProviderProps {
     children: ReactNode;
     repoInfo: RepoInfo | null;
@@ -231,8 +193,10 @@ interface RepositoryProviderProps {
     onError?: (message: string) => void;
     openSettingsPanel?: () => void;
 }
+
 export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repoInfo, fileTree, onError = () => { }, openSettingsPanel }) => {
     const [state, dispatch] = useReducer(repositoryReducer, undefined, createInitialState);
+
     useEffect(() => {
         if (repoInfo) {
             dispatch({ type: 'INITIALIZE_STATE', payload: { repoInfo, fileTree } });
@@ -240,18 +204,23 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
             dispatch({ type: 'RESET' });
         }
     }, [repoInfo, fileTree]);
+
     const handleFileClick = useCallback(async (file: GitHubFile): Promise<void> => {
         const isImage = isImagePath(file.path);
         dispatch({ type: 'SELECT_FILE_START', payload: { path: file.path, isImage: isImage, url: file.download_url || undefined } });
+
         const firstFinding = state.analysisResults?.review.find(f => f.fileName === file.path);
         const lineRangeToActivate = (firstFinding && firstFinding.startLine && firstFinding.endLine)
             ? { start: firstFinding.startLine, end: firstFinding.endLine }
             : null;
+
         if (isImage && file.download_url) {
             dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: ImageFileLabelTemplate.replace('{0}', file.path), url: file.download_url, isImage: true } });
             return;
         }
+
         if (!file.download_url) return;
+
         if (state.fileContentCache.has(file.path)) {
             dispatch({ type: 'SELECT_FILE_SUCCESS', payload: { path: file.path, content: state.fileContentCache.get(file.path)!, isImage: false, url: file.download_url } });
             if (lineRangeToActivate) {
@@ -259,6 +228,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
             }
             return;
         }
+
         try {
             const response = await fetch(file.download_url);
             if (!response.ok) throw new Error(ErrorFetchFailedTemplate.replace('{0}', response.statusText));
@@ -276,6 +246,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
             onError(message);
         }
     }, [state.fileContentCache, state.analysisResults, onError, dispatch]);
+
     const selectFileByPath = useCallback((path: string): void => {
         const file = findFileInTree(path, state.fileTree);
         if (file) {
@@ -284,6 +255,7 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
             onError(ErrorFileNotFoundTemplate.replace('{0}', path));
         }
     }, [state.fileTree, handleFileClick, onError]);
+
     const contextValue = useMemo(() => ({
         state,
         dispatch,
@@ -292,12 +264,14 @@ export const RepositoryProvider: FC<RepositoryProviderProps> = ({ children, repo
         onError,
         openSettingsPanel,
     }), [state, dispatch, handleFileClick, selectFileByPath, onError, openSettingsPanel]);
+
     return (
         <RepositoryContext.Provider value={contextValue}>
             {children}
         </RepositoryContext.Provider>
     );
 };
+
 export const useRepository = (): RepositoryContextType => {
     const context = useContext(RepositoryContext);
     if (context === undefined) {

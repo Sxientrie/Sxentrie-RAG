@@ -2,12 +2,10 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
 import {
   MAX_GEMINI_FILE_COUNT, GEMINI_TEMPERATURE_REGULAR,
-  GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
+  ApiKeyStorageKey, ErrorGeminiUnknown,
   JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
   ErrorCouldNotParseApiKey,
-  LabelInitializingDocEngine, ErrorNoFilesForDocGen,
-  LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
-  LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
+  LabelInitializingAnalysisEngine,
   ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
   StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded
 } from "../../../../shared/config";
@@ -111,85 +109,6 @@ const getFilesForRequest = (
   }
 };
 
-export const generateDocumentation = async (
-  options: {
-    repoName: string,
-    fileTree: GitHubFile[],
-    config: AnalysisConfig,
-    selectedFile: { path: string; content: string; isImage?: boolean } | null,
-    onProgress: (message: string) => void
-  }
-): Promise<string> => {
-  try {
-    const { repoName, fileTree, config, selectedFile, onProgress } = options;
-    const apiKey = getApiKey();
-    const ai = new GoogleGenAI({ apiKey });
-    onProgress(LabelInitializingDocEngine);
-    const files = getFilesForRequest(fileTree, config, selectedFile);
-    if (files.length === 0) {
-      throw new Error(ErrorNoFilesForDocGen);
-    }
-    onProgress(LabelFetchingDocContents);
-    const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
-    if (failedFiles.length > 0) {
-      const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
-      onProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
-    }
-    if (!fileContentsString.trim()) {
-      throw new Error(ErrorCouldNotFetchContent);
-    }
-    const documentationPrompt = `
-<DocumentationRequest>
-  <Persona>
-    You are an expert technical writer specializing in creating high-quality, standards-compliant developer documentation for TypeScript and JavaScript codebases. You are an expert in the JSDoc and TSDoc formats.
-  </Persona>
-  <Instructions>
-    Your task is to generate JSDoc/TSDoc comment blocks for the functions, classes, and types in the provided code snippet. For each item, follow this process:
-    1.  **Analyze Signature:** Identify the name of the function/class and its full signature.
-    2.  **Extract Details:** Determine its overall purpose. List every parameter, its data type, and a brief description. Identify the return value and its data type.
-    3.  **Format Output:** Assemble the extracted information into a single, complete JSDoc/TSDoc comment block that immediately precedes the code it documents. Strictly follow the format shown in the \`<ExampleDocumentation>\`. Generate ONLY the comment block, with no other text or explanation.
-  </Instructions>
-  <ExampleDocumentation>
-/**
- * Fetches the repository tree from the GitHub API.
- * @param {string} owner - The owner of the repository.
- * @param {string} repo - The name of the repository.
- * @returns {Promise<GitHubFile[]>} A promise that resolves with the file tree.
- * @throws {ApiError} If the repository is not found or if the API rate limit is exceeded.
- */
-export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
-  // ... function implementation
-}
-  </ExampleDocumentation>
-  <CodeToDocument>
-    ${fileContentsString}
-  </CodeToDocument>
-</DocumentationRequest>
-    `;
-    const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
-    onProgress(LabelGeneratingDocumentation);
-    const resultStream = await retryWithBackoff(async () => {
-      return await ai.models.generateContentStream({
-        model: config.model,
-        contents: documentationPrompt,
-        config: modelConfig,
-      });
-    });
-    let accumulatedDoc = '';
-    for await (const chunk of resultStream) {
-      const chunkText = chunk.text;
-      if (chunkText) {
-        accumulatedDoc += chunkText;
-        onProgress(LabelReceivingDocumentationTemplate.replace('{0}', (accumulatedDoc.length / 1024).toFixed(1)));
-      }
-    }
-    onProgress(LabelFinalizingDocumentation);
-    return accumulatedDoc;
-  } catch (e) {
-    throw parseGeminiError(e);
-  }
-};
-
 export const runCodeAnalysis = async (
   options: {
     repoName: string,
@@ -232,6 +151,16 @@ export const runCodeAnalysis = async (
     1.  **Generate High-Level Overview (overview):**
         *   Analyze the provided files to understand the project's purpose, technology stack, and architecture.
         *   Synthesize this information into a well-structured Markdown string.
+        *   **CRITICAL:** Start directly with the content. Do NOT use introductory phrases.
+        *   **Content Requirements (Information Dense):**
+            *   **Project Summary:** A detailed description of the project's purpose and domain.
+            *   **Architecture & Data Flow:** Explain the high-level architecture, how data flows through the application, and key design patterns used.
+            *   **Key Features:** A comprehensive list of functionalities.
+            *   **Tech Stack:** Detailed breakdown of languages, frameworks, libraries, and tools.
+            *   **Project Structure:** Explain the organization of the codebase.
+        *   **NEGATIVE CONSTRAINTS:**
+            *   **NO CODE SNIPPETS:** Do NOT include any code blocks or snippets in the overview. Use descriptive text only.
+            *   **NO FINDINGS:** Do NOT summarize code review findings, bugs, or vulnerabilities here. This section must be a neutral, factual description of the codebase.
         *   Assign this Markdown string to the "overview" property of the final JSON object.
 
     2.  **Generate Detailed Technical Review (review):**
