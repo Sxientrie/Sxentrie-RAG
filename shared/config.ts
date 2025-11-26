@@ -274,5 +274,6 @@ export const LabelFastScan = 'Fast Scan';
 export const LabelDeepScan = 'Deep Scan';
 export const TitleGenerateDocs = 'Generate Documentation';
 export const LabelGenerating = 'Generating...';
+export const ErrorRateLimitExceeded = 'Gemini API rate limit exceeded. Please try again later or switch to "Fast Scan" (Gemini 2.5 Flash).';
 export const ReportCodeBlockTemplate = '```{0}\n{1}\n```';
 export const ReportFileNameTemplate = '{0}-analysis{1}';

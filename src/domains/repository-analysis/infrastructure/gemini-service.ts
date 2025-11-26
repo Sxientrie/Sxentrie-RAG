@@ -10,7 +10,7 @@ import {
   LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
   // FIX: Corrected typo from StreamMessageAnalyzing to StreamMessageAnalysis.
   ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
-  StreamMessageFinalizing, JsonResponseMimeType
+  StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded
 } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
@@ -41,6 +41,9 @@ const parseGeminiError = (e: unknown): Error => {
   const cleanedMessage = friendlyMessage.replace(NewlineRegex, ' ').trim();
   if (cleanedMessage.toLowerCase().includes(ApiKeyInvalid)) {
     return new ApiKeyError(ErrorApiKeyInvalid);
+  }
+  if (cleanedMessage.includes('429') || cleanedMessage.toLowerCase().includes('too many requests')) {
+    return new Error(ErrorRateLimitExceeded);
   }
   if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
     return new Error(ErrorUnexpected);
