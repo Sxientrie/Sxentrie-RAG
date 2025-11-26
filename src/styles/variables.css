@@ -1,0 +1,29 @@
+:root {
+    /* Obsidian & Onyx Theme */
+    --primary: oklch(98% 0 0);
+    /* White/Platinum */
+    --foreground: oklch(98% 0 0);
+    /* White */
+    --muted-foreground: oklch(65% 0 0);
+    /* Medium Gray */
+    --background: oklch(10% 0 0);
+    /* Deep Obsidian */
+    --surface: oklch(14% 0 0);
+    /* Dark Onyx */
+    --border: oklch(25% 0 0);
+    /* Steel Gray */
+    --error: oklch(0.65 0.2 25);
+    /* Red (High Contrast) */
+    --info: oklch(90% 0 0);
+    /* Light Gray */
+    --help: oklch(80% 0 0);
+    /* Gray */
+
+    --primary-foreground: oklch(10% 0 0);
+    /* Black text on primary */
+
+    --font-family-sans: 'IBM Plex Sans', sans-serif;
+    --font-family-mono: 'IBM Plex Mono', monospace;
+    --rounded-app: 0.5rem;
+    --radius-pill: 999px;
+}

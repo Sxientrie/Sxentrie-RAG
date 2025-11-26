@@ -1,0 +1,49 @@
+.markdown-content {
+    font-size: 0.95rem;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-top: 1.5rem;
+    color: var(--foreground);
+}
+
+.markdown-content h2 {
+    font-weight: 500;
+}
+
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol {
+    color: var(--muted-foreground);
+    line-height: 1.6;
+}
+
+.markdown-content strong {
+    color: var(--foreground);
+}
+
+.markdown-content code {
+    color: var(--primary);
+    background-color: var(--background);
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 80%;
+    border-radius: calc(var(--rounded-app) - 4px);
+    font-family: var(--font-family-mono);
+}
+
+.markdown-content pre>code {
+    color: var(--foreground);
+    padding: 0;
+    background-color: transparent;
+}
+
+.markdown-content pre {
+    padding: 1rem;
+    border-radius: var(--rounded-app);
+    background-color: var(--background) !important;
+}

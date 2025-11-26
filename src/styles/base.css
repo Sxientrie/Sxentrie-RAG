@@ -1,0 +1,55 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background-color: var(--background);
+}
+
+body {
+    font-family: var(--font-family-sans);
+    color: var(--foreground);
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--rounded-app);
+}
+
+/* Subtle ambient glow - Monochrome */
+body::before,
+body::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 800px;
+    height: 800px;
+    border-radius: 50%;
+    filter: blur(150px);
+    opacity: 0.03;
+    /* Extremely subtle */
+    pointer-events: none;
+}
+
+body::before {
+    top: 50%;
+    left: 0;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, oklch(100% 0 0) 0%, transparent 60%);
+}
+
+body::after {
+    top: 50%;
+    right: 0;
+    transform: translate(50%, -50%);
+    background: radial-gradient(circle, oklch(100% 0 0) 0%, transparent 60%);
+}
+
+#root {
+    display: contents;
+}

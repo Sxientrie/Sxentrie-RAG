@@ -1,0 +1,184 @@
+.panel.file-tree-panel .panel-content {
+    padding: 0;
+}
+
+.file-tree-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.file-search-area {
+    padding: 0.75rem 1rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.file-tree-scroll-area {
+    flex-grow: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0.75rem 1rem;
+}
+
+.file-search-input-wrapper {
+    position: relative;
+}
+
+.file-search-input-wrapper>svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted-foreground);
+    pointer-events: none;
+}
+
+.file-search-input {
+    width: 100%;
+    padding: 0.35rem 0.75rem 0.35rem 2.25rem;
+    font-family: var(--font-family-sans);
+    font-size: 0.9rem;
+    transition: border-color 0.2s, padding-right 0.2s, box-shadow 0.2s;
+}
+
+.file-search-input.input {
+    background-color: var(--background);
+}
+
+.file-search-input::placeholder {
+    opacity: 0.7;
+}
+
+.file-search-input:disabled {
+    background-color: var(--surface);
+    cursor: not-allowed;
+}
+
+.file-search-clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 2px;
+    margin: 0;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.file-search-clear-btn:hover,
+.file-search-clear-btn:focus-visible {
+    color: var(--foreground);
+    background-color: oklch(100% 0 0 / 0.1);
+}
+
+.file-search-input-wrapper:has(.file-search-clear-btn) .file-search-input {
+    padding-right: 2.5rem;
+}
+
+ul.file-tree {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.file-tree li {
+    padding: 0;
+}
+
+.tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: calc(var(--rounded-app) - 4px);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    color: var(--muted-foreground);
+    user-select: none;
+}
+
+.tree-item:hover {
+    background-color: oklch(100% 0 0 / 0.05);
+}
+
+.tree-item.selected {
+    background-color: oklch(65% 0.12 145 / 0.2);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.tree-item.analysis-target>span,
+.tree-item.analysis-target>svg {
+    color: oklch(75% 0.1 145);
+    transition: color 0.2s ease;
+}
+
+.tree-item.selected>span,
+.tree-item.selected>svg {
+    color: var(--primary);
+}
+
+.tree-item-icon {
+    transition: transform 0.2s ease-in-out;
+}
+
+.tree-item-icon.open {
+    transform: rotate(90deg);
+}
+
+.tree-item-spacer {
+    display: inline-block;
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.tree-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.85rem;
+}
+
+.tree-indentation {
+    padding-left: 20px;
+    list-style: none;
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.file-action-btn {
+    background: none;
+    border: none;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--rounded-app);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.file-action-btn:hover:not(:disabled) {
+    background-color: oklch(100% 0 0 / 0.1);
+    color: var(--foreground);
+}
+
+.file-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
