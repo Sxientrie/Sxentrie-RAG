@@ -1,4 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { promises as fs } from 'fs';
+import path from 'path';
 import { fetchFileContents, processThoughtStream } from './_utils';
 import { AnalysisConfig, ANALYSIS_SCOPES, GitHubFile } from '../src/domains/repository-analysis/domain';
 import {
@@ -38,6 +40,15 @@ import {
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
 }
+
+const loadPrompt = async (templateName: string, data: Record<string, string>): Promise<string> => {
+  const filePath = path.join(process.cwd(), 'prompts', `${templateName}.md`);
+  let content = await fs.readFile(filePath, 'utf-8');
+  for (const [key, value] of Object.entries(data)) {
+    content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return content;
+};
 export default async function handler(request: ServerlessRequest) {
   try {
     const { repoName, files, config } = await request.json();
@@ -54,7 +65,14 @@ export default async function handler(request: ServerlessRequest) {
       async start(controller) {
         try {
           const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
-          const fileContentsString = await fetchFileContents(files, config);
+          const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
+          if (failedFiles.length > 0) {
+            const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
+            const enqueueProgress = (message: string) => {
+              controller.enqueue(encoder.encode(`${JSON.stringify({ type: StreamTypeProgress, message })}\n`));
+            };
+            enqueueProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
+          }
           if (!fileContentsString.trim()) {
             throw new Error(ErrorCouldNotFetchContent);
           }
@@ -63,19 +81,12 @@ export default async function handler(request: ServerlessRequest) {
             : AnalysisTargetRepoTemplate.replace('{0}', repoName);
           const overviewHeader = isSingleFile ? PromptOverviewHeaderFile : PromptOverviewHeaderRepo;
           const overviewBody = isSingleFile ? PromptOverviewBodyFile : PromptOverviewBodyRepo;
-          const overviewPrompt = `
-            ${overviewHeader}
-            Your analysis should be based ONLY on the provided code from ${analysisTarget}.
-            **RULES:**
-            1.  Your response MUST be in well-structured markdown.
-            2.  ${overviewBody}
-            3.  Keep the summary to 2-3 paragraphs.
-            4.  Do NOT add any preamble or explanation before the overview. Start directly with the analysis.
-            ---
-            **CODE:**
-            ---
-            ${fileContentsString}
-          `;
+          const overviewPrompt = await loadPrompt('overview', {
+            overviewHeader,
+            analysisTarget,
+            overviewBody,
+            fileContentsString
+          });
           const reviewFocus = config.customRules
             ? `In addition to your standard analysis, the user has provided the following directives to guide your review: "${config.customRules}". Please prioritize these areas where applicable.`
             : PromptReviewFocusDefault;
@@ -89,33 +100,18 @@ export default async function handler(request: ServerlessRequest) {
             }
           }
 
-          const reviewPrompt = `
-            You are an expert code reviewer with a meticulous eye for detail. Your task is to perform a technical review of the provided code from ${analysisTarget}. ${reviewFocus}
-
-            ${languageSpecificGuidelines ? `**Language-Specific Guidelines:**\n${languageSpecificGuidelines}` : ''}
-
-            Your entire output must be a valid JSON array of 'Finding' objects. Each 'Finding' object must conform to the following schema:
-            -   \`fileName\`: The full path of the file being reviewed.
-            -   \`severity\`: A string indicating the issue's severity. Must be one of: "${SeverityCritical}", "${SeverityHigh}", "${SeverityMedium}", or "${SeverityLow}".
-            -   \`finding\`: A concise title for the issue (e.g., "Unused State Variable," "Inefficient String Concatenation").
-            -   \`explanation\`: An array of objects, where each object represents a step in the explanation. An object in this array must have:
-                -   \`type\`: Either "${ExplanationTypeText}" or "${ExplanationTypeCode}".
-                -   \`content\`: The string content for the text or code block.
-            -   \`startLine\`: (Optional) The starting line number of the code snippet the finding refers to.
-            -   \`endLine\`: (Optional) The ending line number of the code snippet.
-            **Instructions:**
-            1.  For each issue you identify, structure your explanation as a logical narrative.
-            2.  Begin with a piece of text that describes the problem and shows the problematic code snippet immediately after.
-            3.  Follow up with text that explains the suggested fix, and then provide the corrected code snippet.
-            4.  Ensure that the \`explanation\` array alternates between "${ExplanationTypeText}" and "${ExplanationTypeCode}" types to create a clear, easy-to-follow review.
-            5.  Your response MUST be ONLY the JSON array. Do not include any preamble, comments, or markdown formatting outside of the JSON structure itself.
-            6.  If you find no issues, return an empty JSON array: [].
-            7.  Assign a \`severity\` based on the potential impact: "${SeverityCritical}" for security vulnerabilities or major bugs, "${SeverityHigh}" for performance issues or significant logical errors, "${SeverityMedium}" for deviations from best practices, and "${SeverityLow}" for stylistic suggestions or minor issues.
-            ---
-            **CODE:**
-            ---
-            ${fileContentsString}
-          `;
+          const reviewPrompt = await loadPrompt('review', {
+            analysisTarget,
+            reviewFocus,
+            languageSpecificGuidelines: languageSpecificGuidelines ? `**Language-Specific Guidelines:**\n${languageSpecificGuidelines}` : '',
+            SeverityCritical,
+            SeverityHigh,
+            SeverityMedium,
+            SeverityLow,
+            ExplanationTypeText,
+            ExplanationTypeCode,
+            fileContentsString
+          });
           const reviewSchema = {
             type: Type.ARRAY,
             items: {

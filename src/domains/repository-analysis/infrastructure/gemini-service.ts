@@ -1,20 +1,20 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
 import {
-  MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR,
+  MAX_GEMINI_FILE_COUNT, GEMINI_TEMPERATURE_REGULAR,
   GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
   JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
   ErrorCouldNotParseApiKey,
-  SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
+  LabelInitializingDocEngine, ErrorNoFilesForDocGen,
   LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
   LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
-  // FIX: Corrected typo from StreamMessageAnalyzing to StreamMessageAnalysis.
   ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
   StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded
 } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
+import { fetchFileContents } from '../../../../shared/utils';
 
 const parseGeminiError = (e: unknown): Error => {
   let friendlyMessage = ErrorGeminiUnknown;
@@ -111,28 +111,6 @@ const getFilesForRequest = (
   }
 };
 
-const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string> => {
-  const fileContents = await Promise.all(
-    files.map(async file => {
-      if (!file.download_url) return '';
-      try {
-        const res = await fetch(file.download_url);
-        if (!res.ok) {
-          console.warn(`Failed to fetch ${file.path}: ${res.statusText}`);
-          return '';
-        }
-        const text = await res.text();
-        const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + TRUNCATED_GEMINI_MESSAGE : text;
-        return SourceCodeTemplate.replace('{0}', file.path).replace('{1}', cappedText);
-      } catch (e) {
-        console.error(`Error fetching content for ${file.path}:`, e);
-        return '';
-      }
-    })
-  );
-  return fileContents.filter(c => c).join(FileContentSeparator);
-};
-
 export const generateDocumentation = async (
   options: {
     repoName: string,
@@ -152,7 +130,11 @@ export const generateDocumentation = async (
       throw new Error(ErrorNoFilesForDocGen);
     }
     onProgress(LabelFetchingDocContents);
-    const fileContentsString = await fetchFileContentsForAnalysis(files);
+    const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
+    if (failedFiles.length > 0) {
+      const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
+      onProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
+    }
     if (!fileContentsString.trim()) {
       throw new Error(ErrorCouldNotFetchContent);
     }
@@ -227,7 +209,11 @@ export const runCodeAnalysis = async (
       throw new Error(ErrorNoFilesForAnalysis);
     }
     onProgress(LabelFetchingAnalysisContents);
-    const fileContentsString = await fetchFileContentsForAnalysis(files);
+    const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
+    if (failedFiles.length > 0) {
+      const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
+      onProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
+    }
     if (!fileContentsString.trim()) {
       throw new Error(ErrorCouldNotFetchContent);
     }
@@ -302,10 +288,8 @@ export const runCodeAnalysis = async (
 
     // Helper to determine thinking config based on model version
     const getThinkingConfig = (model: string) => {
-      if (model.includes('gemini-3')) {
-        return { thinkingLevel: "HIGH", includeThoughts: true };
-      }
-      return { thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED, includeThoughts: true };
+      // Always use thinkingLevel as thinkingBudget is legacy and causing conflicts
+      return { thinkingLevel: "HIGH", includeThoughts: true };
     };
 
     const modelConfig = {

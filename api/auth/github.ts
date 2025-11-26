@@ -1,10 +1,11 @@
 import { SignJWT } from 'jose';
 import { JWT_EXPIRATION_TIME, JWT_MAX_AGE_SECONDS, SESSION_COOKIE_NAME } from '../_constants';
+import { serialize } from 'cookie';
 import {
-    HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorNoCodeProvided,
-    ErrorJwtSecretNotSet, GitHubAccessTokenUrl, HttpMethodPost, HttpHeaderContentType, HttpHeaderAccept,
-    JsonResponseMimeType, GitHubUserApiUrl, HttpHeaderAuthorization, AuthBearerPrefix, JwtAlgorithmHS256,
-    CookieAttributes, ErrorAuthFailed, HttpHeaderContentTypeJsonUtf8
+  HTTP_STATUS_OK, HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorNoCodeProvided,
+  ErrorJwtSecretNotSet, GitHubAccessTokenUrl, HttpMethodPost, HttpHeaderContentType, HttpHeaderAccept,
+  JsonResponseMimeType, GitHubUserApiUrl, HttpHeaderAuthorization, AuthBearerPrefix, JwtAlgorithmHS256,
+  CookieAttributes, ErrorAuthFailed, HttpHeaderContentTypeJsonUtf8
 } from '../../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ code: string }>;
@@ -70,7 +71,15 @@ export default async function handler(request: ServerlessRequest) {
       .setIssuedAt()
       .setExpirationTime(JWT_EXPIRATION_TIME)
       .sign(secret);
-    const cookie = `${SESSION_COOKIE_NAME}=${jwt}; ${CookieAttributes}${JWT_MAX_AGE_SECONDS}`;
+
+    const cookie = serialize(SESSION_COOKIE_NAME, jwt, {
+      httpOnly: true,
+      secure: true,
+      path: '/',
+      sameSite: 'lax',
+      maxAge: JWT_MAX_AGE_SECONDS,
+    });
+
     return new Response(JSON.stringify(userProfile), {
       status: HTTP_STATUS_OK,
       headers: {

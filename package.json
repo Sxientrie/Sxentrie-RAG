@@ -9,15 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
     "@google/genai": "^1.19.0",
+    "@types/cookie": "^0.6.0",
+    "@vitejs/plugin-react": "^5.0.2",
+    "cookie": "^1.1.0",
     "jose": "^6.1.0",
     "lucide-react": "^0.543.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
     "react-syntax-highlighter": "^15.6.6",
-    "@vitejs/plugin-react": "^5.0.2"
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
