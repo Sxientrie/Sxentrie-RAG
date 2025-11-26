@@ -74,6 +74,21 @@ export const AppLayout: FC<AppLayoutProps> = ({
     onToggleDrawer,
     onCloseDrawer,
 }) => {
+    if (isMobile) {
+        return (
+            <div className="mobile-blocker">
+                <div className="mobile-blocker-content">
+                    <div className="mobile-icon-wrapper">
+                        <FolderKanban size={48} />
+                    </div>
+                    <h1>Desktop Only</h1>
+                    <p>This application is designed for a desktop experience.</p>
+                    <p className="sub-text">Please open it on a larger screen to access the full suite of tools.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="main-app">
             <PageHeader
@@ -92,18 +107,14 @@ export const AppLayout: FC<AppLayoutProps> = ({
                 />
             </PageHeader>
             <main className="app-content-grid">
-                {isMobile ? (
-                    <FileTreeDrawer repoInfo={repoInfo} isRepoLoaded={isRepoLoaded} isDrawerOpen={isDrawerOpen} onClose={onCloseDrawer} />
-                ) : (
-                    <ErrorBoundary name={ErrorBoundaryFileTree}>
-                        <Panel
-                            className="file-tree-panel"
-                            title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo!.repo}</> : DefaultRepoTitle}
-                        >
-                            {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>{FileTreePlaceholder}</p></div>}
-                        </Panel>
-                    </ErrorBoundary>
-                )}
+                <ErrorBoundary name={ErrorBoundaryFileTree}>
+                    <Panel
+                        className="file-tree-panel"
+                        title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo!.repo}</> : DefaultRepoTitle}
+                    >
+                        {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>{FileTreePlaceholder}</p></div>}
+                    </Panel>
+                </ErrorBoundary>
                 <ErrorBoundary name={ErrorBoundaryAnalysis}>
                     <MainContent />
                 </ErrorBoundary>

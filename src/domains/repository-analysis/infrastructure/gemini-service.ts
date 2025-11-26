@@ -186,10 +186,12 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
     `;
     const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
     onProgress(LabelGeneratingDocumentation);
-    const resultStream = await ai.models.generateContentStream({
-      model: config.model,
-      contents: documentationPrompt,
-      config: modelConfig,
+    const resultStream = await retryWithBackoff(async () => {
+      return await ai.models.generateContentStream({
+        model: config.model,
+        contents: documentationPrompt,
+        config: modelConfig,
+      });
     });
     let accumulatedDoc = '';
     for await (const chunk of resultStream) {
@@ -315,10 +317,12 @@ export const runCodeAnalysis = async (
 
     const parser = new ThoughtStreamParser();
     onProgress(StreamMessageAnalysis);
-    const analysisStream = await ai.models.generateContentStream({
-      model: config.model,
-      contents: analysisPrompt,
-      config: modelConfig,
+    const analysisStream = await retryWithBackoff(async () => {
+      return await ai.models.generateContentStream({
+        model: config.model,
+        contents: analysisPrompt,
+        config: modelConfig,
+      });
     });
     const analysisText = await processStreamWithThoughts(analysisStream, parser, onProgress);
     onProgress(StreamMessageFinalizing);
@@ -326,5 +330,21 @@ export const runCodeAnalysis = async (
     return finalResult;
   } catch (e) {
     throw parseGeminiError(e);
+  }
+};
+
+const retryWithBackoff = async <T>(
+  operation: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 2000
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error: any) {
+    if (retries > 0 && (error.message?.includes('429') || error.message?.toLowerCase().includes('too many requests'))) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryWithBackoff(operation, retries - 1, delay * 2);
+    }
+    throw error;
   }
 };

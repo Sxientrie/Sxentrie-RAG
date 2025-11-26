@@ -4,7 +4,7 @@ export enum ANALYSIS_SCOPES {
 }
 
 export enum GEMINI_MODELS {
-  FLASH = 'gemini-2.5-flash',
+  FLASH = 'gemini-2.5-pro',
   PRO = 'gemini-3-pro-preview',
 }
 

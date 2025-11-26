@@ -38,28 +38,28 @@ export const useApiClient = () => {
 
   const generateDocumentation = useCallback(async (): Promise<void> => {
     if (!repoInfo) {
-        const errorMessage = ErrorDocGenRepositoryNotLoaded;
-        dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: errorMessage });
-        if (onError) onError(errorMessage);
-        return;
+      const errorMessage = ErrorDocGenRepositoryNotLoaded;
+      dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: errorMessage });
+      if (onError) onError(errorMessage);
+      return;
     }
     dispatch({ type: 'RUN_DOC_GEN_START' });
     try {
-        const doc = await generateDocumentationApi({
-            repoName: repoInfo.repo,
-            fileTree,
-            config: analysisConfig,
-            selectedFile,
-            onProgress: (msg) => dispatch({ type: 'SET_DOC_GEN_PROGRESS', payload: msg })
-        });
-        dispatch({ type: 'RUN_DOC_GEN_SUCCESS', payload: doc });
+      const doc = await generateDocumentationApi({
+        repoName: repoInfo.repo,
+        fileTree,
+        config: analysisConfig,
+        selectedFile,
+        onProgress: (msg) => dispatch({ type: 'SET_DOC_GEN_PROGRESS', payload: msg })
+      });
+      dispatch({ type: 'RUN_DOC_GEN_SUCCESS', payload: doc });
     } catch (err) {
-        if (err instanceof ApiKeyError && openSettingsPanel) {
-            openSettingsPanel();
-        }
-        const message = err instanceof Error ? err.message : ErrorUnknownDocGen;
-        dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
-        if (onError) onError(message);
+      if (err instanceof ApiKeyError && openSettingsPanel) {
+        openSettingsPanel();
+      }
+      const message = err instanceof Error ? err.message : ErrorUnknownDocGen;
+      dispatch({ type: 'RUN_DOC_GEN_ERROR', payload: message });
+      if (onError) onError(message);
     }
   }, [repoInfo, fileTree, analysisConfig, selectedFile, dispatch, openSettingsPanel, onError]);
 
