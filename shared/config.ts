@@ -74,7 +74,19 @@ export const PromptOverviewHeaderFile = 'You are an expert software architect. P
 export const PromptOverviewHeaderRepo = 'You are an expert software architect. Provide a high-level technical overview of the following repository.';
 export const PromptOverviewBodyFile = "Focus on its purpose, primary responsibilities, key components (functions, classes), and its role within the larger application architecture.";
 export const PromptOverviewBodyRepo = "Focus on the project's purpose, technology stack, architecture, and key features. Do not analyze individual files in detail.";
-export const PromptReviewFocusDefault = 'Your focus is on providing a comprehensive, high-quality code review. Identify potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, readability, and adherence to best practices. Be as thorough and insightful as possible.';
+export const PromptReviewFocusDefault = 'Your focus is on providing a comprehensive, high-quality code review. Act as a Senior Security & Performance Auditor. Identify potential bugs, security vulnerabilities, performance bottlenecks, and areas for improved maintainability, readability, and adherence to best practices. Be as thorough and insightful as possible. Prioritize critical issues over minor stylistic suggestions.';
+
+export const LanguageGuidelines: Record<string, string> = {
+    'typescript': 'Check for: Proper type safety (avoid `any`), correct usage of interfaces vs types, strict null checks, and efficient async/await usage.',
+    'javascript': 'Check for: Modern ES6+ syntax usage, potential runtime errors, variable scoping issues (var vs let/const), and proper error handling.',
+    'react': 'Check for: Correct `useEffect` dependency arrays, unnecessary re-renders (useMemo/useCallback usage), proper hook rules adherence, and accessibility (a11y) best practices.',
+    'python': 'Check for: Pythonic idioms (list comprehensions, etc.), proper type hinting (PEP 484), efficient data structure usage, and correct exception handling.',
+    'go': 'Check for: Proper error handling (if err != nil), goroutine leaks, correct channel usage, and efficient memory management.',
+    'java': 'Check for: Proper exception handling, thread safety, efficient stream usage, and adherence to OOP principles.',
+    'css': 'Check for: Maintainable selector structure, efficient use of CSS variables, responsive design best practices, and cross-browser compatibility.',
+    'html': 'Check for: Semantic HTML usage, accessibility attributes (aria-*, alt), and proper document structure.',
+};
+
 export const JsonResponseMimeType = "application/json";
 export const StreamTypeProgress = "progress";
 export const StreamTypeResult = "result";
@@ -183,20 +195,6 @@ export const ReportDetailsTableHeader = '| Severity | File | Line(s) |\n|:---|:-
 export const ReportDetailsTableRowTemplate = '| {0} | `{1}` | {2} |';
 export const ReportLineRangeTemplate = '{0}-{1}';
 export const ReportNotApplicable = 'N/A';
-export const ReportCodeBlockTemplate = '```{0}\n{1}\n```\n\n';
-export const ReportQuoteTemplate = '> {0}\n\n';
-export const ReportFileNameTemplate = '{0}-analysis-report{1}';
-export const FastScanPreviewTemplate = 'Analyzes the first {0} files.';
-export const DeepScanPreviewTemplate = 'Analyzes all {0} supported files.';
-export const ErrorUnknownDocGen = 'An unknown error occurred during documentation generation.';
-export const PlaceholderCustomInstructions = 'Guide Sxentrie with specific instructions, e.g., "Focus on security vulnerabilities" or "Ignore styling issues and check for performance bottlenecks."';
-export const TitleEnableOnFileSelection = 'Select a text file to enable this option';
-export const LabelEntireRepo = 'Entire Repo';
-export const LabelSelectedFile = 'Selected File';
-export const LabelFastScan = 'Fast Scan';
-export const LabelDeepScan = 'Deep Scan';
-export const TitleGenerateDocs = 'Generate documentation for the selected scope';
-export const LabelGenerating = 'Generating...';
 export const LabelGenerateDocs = 'Generate Docs';
 export const LabelAnalyzing = 'Analyzing...';
 export const LabelRunAnalysis = 'Run Analysis';
@@ -265,3 +263,16 @@ export const ErrorApiKeyInvalid = 'The provided Gemini API key is invalid or has
 export const ErrorUnexpected = 'An unexpected error format was received from the API.';
 export const ErrorApiKeyNotFound = 'Gemini API key not found. Please add your key in the Settings panel.';
 export const SourceCodeTemplate = '--- FILE: {0} ---\n\n{1}';
+
+// Missing constants restored
+export const ErrorUnknownDocGen = 'An unknown error occurred during documentation generation.';
+export const PlaceholderCustomInstructions = 'Enter custom instructions (e.g., "Focus on security vulnerabilities")...';
+export const TitleEnableOnFileSelection = 'Select a file in the file tree to enable this option.';
+export const LabelEntireRepo = 'Entire Repository';
+export const LabelSelectedFile = 'Selected File';
+export const LabelFastScan = 'Fast Scan';
+export const LabelDeepScan = 'Deep Scan';
+export const TitleGenerateDocs = 'Generate Documentation';
+export const LabelGenerating = 'Generating...';
+export const ReportCodeBlockTemplate = '```{0}\n{1}\n```';
+export const ReportFileNameTemplate = '{0}-analysis{1}';

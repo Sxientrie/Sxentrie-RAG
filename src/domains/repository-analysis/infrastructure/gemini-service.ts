@@ -1,52 +1,53 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
 import {
-    MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR,
-    GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
-    JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
-    ErrorCouldNotParseApiKey,
-    SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
-    LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
-    LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
-    // FIX: Corrected typo from StreamMessageAnalyzing to StreamMessageAnalysis.
-    ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
-    StreamMessageFinalizing, JsonResponseMimeType
+  MAX_GEMINI_FILE_COUNT, MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, GEMINI_TEMPERATURE_REGULAR,
+  GEMINI_TEMPERATURE_LOW, GEMINI_THINKING_BUDGET_UNLIMITED, ApiKeyStorageKey, ErrorGeminiUnknown,
+  JsonRegex, NewlineRegex, ApiKeyInvalid, ErrorApiKeyInvalid, ErrorUnexpected, ErrorApiKeyNotFound,
+  ErrorCouldNotParseApiKey,
+  SourceCodeTemplate, FileContentSeparator, LabelInitializingDocEngine, ErrorNoFilesForDocGen,
+  LabelFetchingDocContents, ErrorCouldNotFetchContent, LabelGeneratingDocumentation,
+  LabelReceivingDocumentationTemplate, LabelFinalizingDocumentation, LabelInitializingAnalysisEngine,
+  // FIX: Corrected typo from StreamMessageAnalyzing to StreamMessageAnalysis.
+  ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
+  StreamMessageFinalizing, JsonResponseMimeType
 } from "../../../../shared/config";
 import { collectAllFiles } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
 
 const parseGeminiError = (e: unknown): Error => {
-    let friendlyMessage = ErrorGeminiUnknown;
-    if (e instanceof Error) {
-        const rawMessage = e.message;
-        try {
-            const jsonMatch = rawMessage.match(JsonRegex);
-            if (jsonMatch && jsonMatch[1]) {
-                const errorObj = JSON.parse(jsonMatch[1]);
-                if (errorObj?.error?.message) {
-                    friendlyMessage = errorObj.error.message;
-                } else {
-                    friendlyMessage = rawMessage;
-                }
-            } else {
-                friendlyMessage = rawMessage;
-            }
-        } catch (parseError) {
-            friendlyMessage = rawMessage;
+  let friendlyMessage = ErrorGeminiUnknown;
+  if (e instanceof Error) {
+    const rawMessage = e.message;
+    try {
+      const jsonMatch = rawMessage.match(JsonRegex);
+      if (jsonMatch && jsonMatch[1]) {
+        const errorObj = JSON.parse(jsonMatch[1]);
+        if (errorObj?.error?.message) {
+          friendlyMessage = errorObj.error.message;
+        } else {
+          friendlyMessage = rawMessage;
         }
-    } else if (typeof e === 'string') {
-        friendlyMessage = e;
+      } else {
+        friendlyMessage = rawMessage;
+      }
+    } catch (parseError) {
+      friendlyMessage = rawMessage;
     }
-    const cleanedMessage = friendlyMessage.replace(NewlineRegex, ' ').trim();
-    if (cleanedMessage.toLowerCase().includes(ApiKeyInvalid)) {
-        return new ApiKeyError(ErrorApiKeyInvalid);
-    }
-    if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
-        return new Error(ErrorUnexpected);
-    }
-    return new Error(cleanedMessage);
+  } else if (typeof e === 'string') {
+    friendlyMessage = e;
+  }
+  const cleanedMessage = friendlyMessage.replace(NewlineRegex, ' ').trim();
+  if (cleanedMessage.toLowerCase().includes(ApiKeyInvalid)) {
+    return new ApiKeyError(ErrorApiKeyInvalid);
+  }
+  if (cleanedMessage.length < 10 && cleanedMessage.includes('{')) {
+    return new Error(ErrorUnexpected);
+  }
+  return new Error(cleanedMessage);
 };
+
 async function processStreamWithThoughts(
   stream: AsyncGenerator<GenerateContentResponse>,
   parser: ThoughtStreamParser,
@@ -73,22 +74,24 @@ async function processStreamWithThoughts(
   }
   return accumulatedText;
 }
+
 const getApiKey = (): string => {
   const settingsString = localStorage.getItem(ApiKeyStorageKey);
   if (!settingsString) {
-      throw new ApiKeyError(ErrorApiKeyNotFound);
+    throw new ApiKeyError(ErrorApiKeyNotFound);
   }
   try {
-      const settings = JSON.parse(settingsString);
-      const apiKey = settings.apiKey;
-      if (!apiKey || !apiKey.trim()) {
-          throw new ApiKeyError(ErrorApiKeyNotFound);
-      }
-      return apiKey;
+    const settings = JSON.parse(settingsString);
+    const apiKey = settings.apiKey;
+    if (!apiKey || !apiKey.trim()) {
+      throw new ApiKeyError(ErrorApiKeyNotFound);
+    }
+    return apiKey;
   } catch (e) {
-      throw new ApiKeyError(ErrorCouldNotParseApiKey);
+    throw new ApiKeyError(ErrorCouldNotParseApiKey);
   }
 };
+
 const getFilesForRequest = (
   fileTree: GitHubFile[],
   config: AnalysisConfig,
@@ -104,6 +107,7 @@ const getFilesForRequest = (
       : allFiles;
   }
 };
+
 const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string> => {
   const fileContents = await Promise.all(
     files.map(async file => {
@@ -125,6 +129,7 @@ const fetchFileContentsForAnalysis = async (files: GitHubFile[]): Promise<string
   );
   return fileContents.filter(c => c).join(FileContentSeparator);
 };
+
 export const generateDocumentation = async (
   options: {
     repoName: string,
@@ -141,12 +146,12 @@ export const generateDocumentation = async (
     onProgress(LabelInitializingDocEngine);
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
-        throw new Error(ErrorNoFilesForDocGen);
+      throw new Error(ErrorNoFilesForDocGen);
     }
     onProgress(LabelFetchingDocContents);
     const fileContentsString = await fetchFileContentsForAnalysis(files);
-     if (!fileContentsString.trim()) {
-        throw new Error(ErrorCouldNotFetchContent);
+    if (!fileContentsString.trim()) {
+      throw new Error(ErrorCouldNotFetchContent);
     }
     const documentationPrompt = `
 <DocumentationRequest>
@@ -179,17 +184,17 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
     const modelConfig = { temperature: GEMINI_TEMPERATURE_REGULAR };
     onProgress(LabelGeneratingDocumentation);
     const resultStream = await ai.models.generateContentStream({
-        model: config.model,
-        contents: documentationPrompt,
-        config: modelConfig,
+      model: config.model,
+      contents: documentationPrompt,
+      config: modelConfig,
     });
     let accumulatedDoc = '';
     for await (const chunk of resultStream) {
-        const chunkText = chunk.text;
-        if (chunkText) {
-            accumulatedDoc += chunkText;
-            onProgress(LabelReceivingDocumentationTemplate.replace('{0}', (accumulatedDoc.length / 1024).toFixed(1)));
-        }
+      const chunkText = chunk.text;
+      if (chunkText) {
+        accumulatedDoc += chunkText;
+        onProgress(LabelReceivingDocumentationTemplate.replace('{0}', (accumulatedDoc.length / 1024).toFixed(1)));
+      }
     }
     onProgress(LabelFinalizingDocumentation);
     return accumulatedDoc;
@@ -197,6 +202,7 @@ export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHub
     throw parseGeminiError(e);
   }
 };
+
 export const runCodeAnalysis = async (
   options: {
     repoName: string,
@@ -213,16 +219,16 @@ export const runCodeAnalysis = async (
     onProgress(LabelInitializingAnalysisEngine);
     const files = getFilesForRequest(fileTree, config, selectedFile);
     if (files.length === 0) {
-        throw new Error(ErrorNoFilesForAnalysis);
+      throw new Error(ErrorNoFilesForAnalysis);
     }
     onProgress(LabelFetchingAnalysisContents);
     const fileContentsString = await fetchFileContentsForAnalysis(files);
     if (!fileContentsString.trim()) {
-        throw new Error(ErrorCouldNotFetchContent);
+      throw new Error(ErrorCouldNotFetchContent);
     }
     const customFocus = config.customRules
-        ? `You have been given a special directive for this review: "${config.customRules}". You must place a strong emphasis on this directive during your analysis.`
-        : `Your analysis should be comprehensive, covering a wide range of potential issues from security to maintainability.`;
+      ? `You have been given a special directive for this review: "${config.customRules}". You must place a strong emphasis on this directive during your analysis.`
+      : `Your analysis should be comprehensive, covering a wide range of potential issues from security to maintainability.`;
 
     const analysisPrompt = `
 <CodeAnalysisRequest>
@@ -257,52 +263,59 @@ export const runCodeAnalysis = async (
 </CodeAnalysisRequest>
     `;
     const analysisSchema = {
-        type: Type.OBJECT,
-        properties: {
-            overview: { type: Type.STRING },
-            review: {
+      type: Type.OBJECT,
+      properties: {
+        overview: { type: Type.STRING },
+        review: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              fileName: { type: Type.STRING },
+              severity: { type: Type.STRING },
+              finding: { type: Type.STRING },
+              explanation: {
                 type: Type.ARRAY,
                 items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        fileName: { type: Type.STRING },
-                        severity: { type: Type.STRING },
-                        finding: { type: Type.STRING },
-                        explanation: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    type: { type: Type.STRING },
-                                    content: { type: Type.STRING },
-                                },
-                                required: ["type", "content"],
-                            },
-                        },
-                        startLine: { type: Type.NUMBER },
-                        endLine: { type: Type.NUMBER },
-                    },
-                    required: ["fileName", "severity", "finding", "explanation"],
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING },
+                    content: { type: Type.STRING },
+                  },
+                  required: ["type", "content"],
                 },
+              },
+              startLine: { type: Type.NUMBER },
+              endLine: { type: Type.NUMBER },
             },
+            required: ["fileName", "severity", "finding", "explanation"],
+          },
         },
-        required: ["overview", "review"],
+      },
+      required: ["overview", "review"],
     };
+
+    // Helper to determine thinking config based on model version
+    const getThinkingConfig = (model: string) => {
+      if (model.includes('gemini-3')) {
+        return { thinkingLevel: "HIGH", includeThoughts: true };
+      }
+      return { thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED, includeThoughts: true };
+    };
+
     const modelConfig = {
-      temperature: GEMINI_TEMPERATURE_LOW,
+      temperature: GEMINI_TEMPERATURE_REGULAR,
       responseMimeType: JsonResponseMimeType,
       responseSchema: analysisSchema,
-      thinkingConfig: {
-        thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
-        includeThoughts: true,
-      },
+      thinkingConfig: getThinkingConfig(config.model),
     };
+
     const parser = new ThoughtStreamParser();
     onProgress(StreamMessageAnalysis);
     const analysisStream = await ai.models.generateContentStream({
-        model: config.model,
-        contents: analysisPrompt,
-        config: modelConfig
+      model: config.model,
+      contents: analysisPrompt,
+      config: modelConfig,
     });
     const analysisText = await processStreamWithThoughts(analysisStream, parser, onProgress);
     onProgress(StreamMessageFinalizing);

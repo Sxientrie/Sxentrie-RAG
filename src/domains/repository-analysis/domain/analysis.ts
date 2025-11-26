@@ -1,20 +1,24 @@
 export enum ANALYSIS_SCOPES {
-    ALL = 'all',
-    FILE = 'file',
+  ALL = 'all',
+  FILE = 'file',
 }
+
 export enum GEMINI_MODELS {
-    FLASH = 'gemini-2.5-flash',
-    PRO = 'gemini-2.5-pro',
+  FLASH = 'gemini-2.5-flash',
+  PRO = 'gemini-3-pro-preview',
 }
+
 export enum ANALYSIS_TABS {
-    EDITOR = 'Editor',
-    OVERVIEW = 'Project Overview',
-    REVIEW = 'Technical Review',
+  EDITOR = 'Editor',
+  OVERVIEW = 'Project Overview',
+  REVIEW = 'Technical Review',
 }
+
 export enum ANALYSIS_MODES {
   FAST = 'fast',
   DEEP = 'deep',
 }
+
 export interface AnalysisConfig {
   customRules: string;
   scope: ANALYSIS_SCOPES;
@@ -23,11 +27,14 @@ export interface AnalysisConfig {
   includePatterns: string;
   excludePatterns: string;
 }
+
 export interface ExplanationStep {
   type: 'text' | 'code';
   content: string;
 }
+
 export type SeverityLevel = "Critical" | "High" | "Medium" | "Low";
+
 export interface TechnicalReviewFinding {
   fileName: string;
   severity: SeverityLevel;
@@ -36,6 +43,7 @@ export interface TechnicalReviewFinding {
   startLine?: number;
   endLine?: number;
 }
+
 export interface AnalysisResults {
   overview: string;
   review: TechnicalReviewFinding[];

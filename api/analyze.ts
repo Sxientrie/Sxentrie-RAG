@@ -2,37 +2,38 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { fetchFileContents, processThoughtStream } from './_utils';
 import { AnalysisConfig, ANALYSIS_SCOPES, GitHubFile } from '../src/domains/repository-analysis/domain';
 import {
-    HTTP_STATUS_BAD_REQUEST,
-    HTTP_STATUS_INTERNAL_SERVER_ERROR,
-    GEMINI_TEMPERATURE_REGULAR,
-    GEMINI_TEMPERATURE_LOW,
-    GEMINI_THINKING_BUDGET_UNLIMITED,
-    ErrorApiKeyNotSet,
-    ErrorNoFilesProvided,
-    ErrorCouldNotFetchContent,
-    ErrorUnknownAnalysis,
-    ErrorInvalidRequestBody,
-    PromptOverviewHeaderFile,
-    PromptOverviewHeaderRepo,
-    PromptOverviewBodyFile,
-    PromptOverviewBodyRepo,
-    PromptReviewFocusDefault,
-    JsonResponseMimeType,
-    StreamTypeProgress,
-    StreamTypeResult,
-    StreamTypeError,
-    StreamMessagePhase1,
-    StreamMessagePhase2,
-    StreamMessageFinalizing,
-    HttpHeaderContentTypeJsonUtf8,
-    AnalysisTargetFileTemplate,
-    AnalysisTargetRepoTemplate,
-    SeverityCritical,
-    SeverityHigh,
-    SeverityMedium,
-    SeverityLow,
-    ExplanationTypeText,
-    ExplanationTypeCode,
+  HTTP_STATUS_BAD_REQUEST,
+  HTTP_STATUS_INTERNAL_SERVER_ERROR,
+  GEMINI_TEMPERATURE_REGULAR,
+  GEMINI_TEMPERATURE_LOW,
+  GEMINI_THINKING_BUDGET_UNLIMITED,
+  ErrorApiKeyNotSet,
+  ErrorNoFilesProvided,
+  ErrorCouldNotFetchContent,
+  ErrorUnknownAnalysis,
+  ErrorInvalidRequestBody,
+  PromptOverviewHeaderFile,
+  PromptOverviewHeaderRepo,
+  PromptOverviewBodyFile,
+  PromptOverviewBodyRepo,
+  PromptReviewFocusDefault,
+  JsonResponseMimeType,
+  StreamTypeProgress,
+  StreamTypeResult,
+  StreamTypeError,
+  StreamMessagePhase1,
+  StreamMessagePhase2,
+  StreamMessageFinalizing,
+  HttpHeaderContentTypeJsonUtf8,
+  AnalysisTargetFileTemplate,
+  AnalysisTargetRepoTemplate,
+  SeverityCritical,
+  SeverityHigh,
+  SeverityMedium,
+  SeverityLow,
+  ExplanationTypeText,
+  ExplanationTypeCode,
+  LanguageGuidelines,
 } from '../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
@@ -55,7 +56,7 @@ export default async function handler(request: ServerlessRequest) {
           const isSingleFile = files.length === 1 && config.scope === ANALYSIS_SCOPES.FILE;
           const fileContentsString = await fetchFileContents(files, config);
           if (!fileContentsString.trim()) {
-              throw new Error(ErrorCouldNotFetchContent);
+            throw new Error(ErrorCouldNotFetchContent);
           }
           const analysisTarget = isSingleFile
             ? AnalysisTargetFileTemplate.replace('{0}', files[0].path)
@@ -78,8 +79,21 @@ export default async function handler(request: ServerlessRequest) {
           const reviewFocus = config.customRules
             ? `In addition to your standard analysis, the user has provided the following directives to guide your review: "${config.customRules}". Please prioritize these areas where applicable.`
             : PromptReviewFocusDefault;
+
+          // Detect languages and inject guidelines
+          const extensions = new Set(files.map(f => f.path.split('.').pop()?.toLowerCase()).filter(Boolean));
+          let languageSpecificGuidelines = '';
+          for (const [lang, guideline] of Object.entries(LanguageGuidelines)) {
+            if (extensions.has(lang) || (lang === 'react' && (extensions.has('tsx') || extensions.has('jsx')))) {
+              languageSpecificGuidelines += `- ${guideline}\n`;
+            }
+          }
+
           const reviewPrompt = `
             You are an expert code reviewer with a meticulous eye for detail. Your task is to perform a technical review of the provided code from ${analysisTarget}. ${reviewFocus}
+
+            ${languageSpecificGuidelines ? `**Language-Specific Guidelines:**\n${languageSpecificGuidelines}` : ''}
+
             Your entire output must be a valid JSON array of 'Finding' objects. Each 'Finding' object must conform to the following schema:
             -   \`fileName\`: The full path of the file being reviewed.
             -   \`severity\`: A string indicating the issue's severity. Must be one of: "${SeverityCritical}", "${SeverityHigh}", "${SeverityMedium}", or "${SeverityLow}".
@@ -127,17 +141,23 @@ export default async function handler(request: ServerlessRequest) {
               required: ["fileName", "severity", "finding", "explanation"],
             },
           };
+          // Helper to determine thinking config based on model version
+          const getThinkingConfig = (model: string) => {
+            if (model.includes('gemini-3')) {
+              return { thinkingLevel: "HIGH", includeThoughts: true };
+            }
+            return { thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED, includeThoughts: true };
+          };
+
           const overviewModelConfig = {
             temperature: GEMINI_TEMPERATURE_REGULAR,
-            thinkingConfig: {
-              thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED,
-              includeThoughts: true,
-            },
+            thinkingConfig: getThinkingConfig(config.model),
           };
           const reviewModelConfig = {
             temperature: GEMINI_TEMPERATURE_LOW,
             responseMimeType: JsonResponseMimeType,
-            responseSchema: reviewSchema
+            responseSchema: reviewSchema,
+            thinkingConfig: getThinkingConfig(config.model),
           };
           const enqueueProgress = (message: string) => {
             controller.enqueue(encoder.encode(`${JSON.stringify({ type: StreamTypeProgress, message })}\n`));
