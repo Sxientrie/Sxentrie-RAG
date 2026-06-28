@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fetchFileContents, processThoughtStream } from './_utils';
@@ -51,10 +51,10 @@ interface ServerlessRequest {
   headers: { get: (headerName: string) => string | null };
 }
 
-const loadPrompt = async (templateName: string, data: Record<string, string>): Promise<string> => {
+const loadPrompt = async (templateName: string, promptVariables: Record<string, string>): Promise<string> => {
   const filePath = path.join(process.cwd(), 'prompts', `${templateName}.md`);
   let content = await fs.readFile(filePath, 'utf-8');
-  for (const [key, value] of Object.entries(data)) {
+  for (const [key, value] of Object.entries(promptVariables)) {
     content = content.replace(new RegExp(`{{${key}}}`, 'g'), () => value);
   }
   return content;
@@ -185,7 +185,7 @@ export default async function handler(request: ServerlessRequest) {
           // Helper to determine thinking config based on model version
           const getThinkingConfig = (model: string) => {
             if (model.includes('gemini-3')) {
-              return { thinkingLevel: "HIGH", includeThoughts: true };
+              return { thinkingLevel: ThinkingLevel.HIGH, includeThoughts: true };
             }
             return { thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED, includeThoughts: true };
           };

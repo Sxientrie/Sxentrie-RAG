@@ -16,11 +16,11 @@ export const GitHubCallbackHandler: FC = () => {
               headers: { [HttpHeaderContentType]: JsonResponseMimeType },
               body: JSON.stringify({ code }),
             });
-            const data = await response.json();
+            const authResult = await response.json();
             if (!response.ok) {
-              throw new Error(data.error || ErrorFailedToAuthenticate);
+              throw new Error(authResult.error || ErrorFailedToAuthenticate);
             }
-            window.opener.postMessage({ type: AUTH_SUCCESS_MESSAGE_TYPE, user: data }, window.location.origin);
+            window.opener.postMessage({ type: AUTH_SUCCESS_MESSAGE_TYPE, user: authResult }, window.location.origin);
           } catch (error) {
             const message = error instanceof Error ? error.message : ErrorUnknown;
             window.opener.postMessage({ type: AUTH_ERROR_MESSAGE_TYPE, error: message }, window.location.origin);

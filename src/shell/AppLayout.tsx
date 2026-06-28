@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { GitHubFile, RepoInfo } from "../domains/repository-analysis/domain";
+import { RepoInfo } from "../domains/repository-analysis/domain";
 import { RepoLoader } from "../domains/repository-analysis/ui/repo-loader";
 import { FileTree } from "../domains/repository-analysis/ui/file-tree";
 import { AnalysisPanel } from "../domains/repository-analysis/ui/analysis-panel";
@@ -18,7 +18,6 @@ import { MainContent } from "./main-content";
 
 type AppLayoutProps = {
     repoInfo: RepoInfo | null;
-    fileTree: GitHubFile[];
     repoUrl: string;
     isLoading: boolean;
     displayError: string | null;

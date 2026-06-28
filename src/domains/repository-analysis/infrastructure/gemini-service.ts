@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse, ThinkingLevel } from "@google/genai";
 import { GitHubFile, AnalysisConfig, ANALYSIS_SCOPES, AnalysisResults, ANALYSIS_MODES } from '../domain';
 import {
   MAX_GEMINI_FILE_COUNT, GEMINI_TEMPERATURE_REGULAR,
@@ -8,7 +8,7 @@ import {
   LabelInitializingAnalysisEngine,
   ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
   StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded,
-  ErrorCouldNotFetchContent
+  ErrorCouldNotFetchContent, GEMINI_THINKING_BUDGET_UNLIMITED
 } from "../../../../shared/config";
 import { collectAllFiles, findFileInTree } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
@@ -110,38 +110,45 @@ const getFilesForRequest = (
   }
 };
 
-export const runCodeAnalysis = async (
-  options: {
-    repoName: string,
-    fileTree: GitHubFile[],
-    config: AnalysisConfig,
-    selectedFile: { path: string; content: string; isImage?: boolean } | null,
-    onProgress: (message: string) => void
-  }
-): Promise<AnalysisResults> => {
-  try {
-    const { repoName, fileTree, config, selectedFile, onProgress } = options;
-    const apiKey = getApiKey();
-    const ai = new GoogleGenAI({ apiKey });
-    onProgress(LabelInitializingAnalysisEngine);
-    const files = getFilesForRequest(fileTree, config, selectedFile);
-    if (files.length === 0) {
-      throw new Error(ErrorNoFilesForAnalysis);
-    }
-    onProgress(LabelFetchingAnalysisContents);
-    const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
-    if (failedFiles.length > 0) {
-      const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
-      onProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
-    }
-    if (!fileContentsString.trim()) {
-      throw new Error(ErrorCouldNotFetchContent);
-    }
-    const customFocus = config.customRules
-      ? `You have been given a special directive for this review: "${config.customRules}". You must place a strong emphasis on this directive during your analysis.`
-      : `Your analysis should be comprehensive, covering a wide range of potential issues from security to maintainability.`;
+const analysisSchema = {
+  type: Type.OBJECT,
+  properties: {
+    overview: { type: Type.STRING },
+    review: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          fileName: { type: Type.STRING },
+          severity: { type: Type.STRING },
+          finding: { type: Type.STRING },
+          explanation: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                type: { type: Type.STRING },
+                content: { type: Type.STRING },
+              },
+              required: ["type", "content"],
+            },
+          },
+          startLine: { type: Type.NUMBER },
+          endLine: { type: Type.NUMBER },
+        },
+        required: ["fileName", "severity", "finding", "explanation"],
+      },
+    },
+  },
+  required: ["overview", "review"],
+};
 
-    const analysisPrompt = `
+const buildAnalysisPrompt = (fileContentsString: string, customRules?: string): string => {
+  const customFocus = customRules
+    ? `You have been given a special directive for this review: "${customRules}". You must place a strong emphasis on this directive during your analysis.`
+    : `Your analysis should be comprehensive, covering a wide range of potential issues from security to maintainability.`;
+
+  return `
 <CodeAnalysisRequest>
   <Persona>
     You are an expert Principal Software Architect and code reviewer. Your expertise lies in analyzing complex codebases, identifying architectural patterns, and conducting thorough, actionable code reviews. You communicate findings clearly and concisely. ${customFocus}
@@ -182,44 +189,45 @@ export const runCodeAnalysis = async (
     ${fileContentsString}
   </SourceCode>
 </CodeAnalysisRequest>
-    `;
-    const analysisSchema = {
-      type: Type.OBJECT,
-      properties: {
-        overview: { type: Type.STRING },
-        review: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              fileName: { type: Type.STRING },
-              severity: { type: Type.STRING },
-              finding: { type: Type.STRING },
-              explanation: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING },
-                    content: { type: Type.STRING },
-                  },
-                  required: ["type", "content"],
-                },
-              },
-              startLine: { type: Type.NUMBER },
-              endLine: { type: Type.NUMBER },
-            },
-            required: ["fileName", "severity", "finding", "explanation"],
-          },
-        },
-      },
-      required: ["overview", "review"],
-    };
+  `;
+};
+
+export const runCodeAnalysis = async (
+  options: {
+    repoName: string,
+    fileTree: GitHubFile[],
+    config: AnalysisConfig,
+    selectedFile: { path: string; content: string; isImage?: boolean } | null,
+    onProgress: (message: string) => void
+  }
+): Promise<AnalysisResults> => {
+  try {
+    const { repoName, fileTree, config, selectedFile, onProgress } = options;
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    onProgress(LabelInitializingAnalysisEngine);
+    const files = getFilesForRequest(fileTree, config, selectedFile);
+    if (files.length === 0) {
+      throw new Error(ErrorNoFilesForAnalysis);
+    }
+    onProgress(LabelFetchingAnalysisContents);
+    const { content: fileContentsString, failedFiles } = await fetchFileContents(files);
+    if (failedFiles.length > 0) {
+      const failedFilesList = failedFiles.map(f => `${f.path} (${f.error})`).join(', ');
+      onProgress(`Warning: Failed to fetch content for: ${failedFilesList}`);
+    }
+    if (!fileContentsString.trim()) {
+      throw new Error(ErrorCouldNotFetchContent);
+    }
+
+    const analysisPrompt = buildAnalysisPrompt(fileContentsString, config.customRules);
 
     // Helper to determine thinking config based on model version
     const getThinkingConfig = (model: string) => {
-      // Always use thinkingLevel as thinkingBudget is legacy and causing conflicts
-      return { thinkingLevel: "HIGH", includeThoughts: true };
+      if (model.includes('gemini-3')) {
+        return { thinkingLevel: ThinkingLevel.HIGH, includeThoughts: true };
+      }
+      return { thinkingBudget: GEMINI_THINKING_BUDGET_UNLIMITED, includeThoughts: true };
     };
 
     const modelConfig = {
