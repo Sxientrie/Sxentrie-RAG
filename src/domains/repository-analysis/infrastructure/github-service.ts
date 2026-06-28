@@ -20,6 +20,12 @@ interface FileTreeNode {
   download_url: string | null;
   content: { [key: string]: FileTreeNode };
 }
+/**
+ * Parses a GitHub repository URL to extract the owner and repository name.
+ * 
+ * @param url - The GitHub repository URL (e.g. 'https://github.com/owner/repo')
+ * @returns An object containing the owner and repo name, or null if the URL is invalid.
+ */
 export const parseGitHubUrl = (url: string): RepoInfo | null => {
   const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (match) {
@@ -27,6 +33,15 @@ export const parseGitHubUrl = (url: string): RepoInfo | null => {
   }
   return null;
 };
+
+/**
+ * Fetches the recursive file tree of a GitHub repository branch.
+ * 
+ * @param owner - The owner of the GitHub repository
+ * @param repo - The name of the GitHub repository
+ * @returns A promise resolving to a tree structure representing the files and directories.
+ * @throws ApiError if the repository is not found or the rate limit is exceeded.
+ */
 export const fetchRepoTree = async (owner: string, repo: string): Promise<GitHubFile[]> => {
   const repoDetailsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
   if (!repoDetailsResponse.ok) {

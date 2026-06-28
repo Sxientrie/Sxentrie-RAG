@@ -89,7 +89,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 export const useAppShell = () => {
     const [state, dispatch] = useReducer(appReducer, undefined, getInitialState);
     const [rightPanelView, setRightPanelView] = useState<string>(RightPanelViewer);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { repoInfo, fileTree, repoUrl, isLoading, error, localStorageError, transientError, footerTooltip } = state;
     const isRepoLoaded = !!repoInfo;
     const isMobile = useMediaQuery(MediaQuerySm);
@@ -158,10 +157,6 @@ export const useAppShell = () => {
 
     const setRepoUrl = (url: string) => dispatch({ type: 'SET_REPO_URL', payload: url });
 
-    const onToggleDrawer = () => setIsDrawerOpen(prev => !prev);
-
-    const onCloseDrawer = () => setIsDrawerOpen(false);
-
     const displayError = localStorageError || transientError || error;
 
     return {
@@ -175,7 +170,6 @@ export const useAppShell = () => {
         rightPanelView,
         isRepoLoaded,
         isMobile,
-        isDrawerOpen,
 
         // Handlers
         setRepoUrl,
@@ -186,8 +180,6 @@ export const useAppShell = () => {
         handleToggleSettings,
         handleOpenSettings,
         handleCloseSettings,
-        onToggleDrawer,
-        onCloseDrawer,
         dispatch,
     };
 };

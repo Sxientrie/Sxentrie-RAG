@@ -88,12 +88,12 @@ export const MainContent: FC = () => {
     const md = reportParts.join('');
     const blob = new Blob([md], { type: REPORT_FILE_MIMETYPE });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ReportFileNameTemplate.replace('{0}', repoInfo.repo).replace('{1}', MARKDOWN_FILE_EXTENSION);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = ReportFileNameTemplate.replace('{0}', repoInfo.repo).replace('{1}', MARKDOWN_FILE_EXTENSION);
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
     URL.revokeObjectURL(url);
   }, [analysisResults, repoInfo, analysisConfig, selectedFile]);
 

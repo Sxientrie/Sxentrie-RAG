@@ -16,22 +16,6 @@ import {
 import { SettingsPanel } from '../domains/settings/ui/settings-panel';
 import { MainContent } from "./main-content";
 
-const FileTreeDrawer = ({ repoInfo, isRepoLoaded, isDrawerOpen, onClose }: { repoInfo: RepoInfo | null; isRepoLoaded: boolean; isDrawerOpen: boolean; onClose: () => void; }) => (
-    <div className={`drawer-container ${isDrawerOpen ? 'open' : ''}`}>
-        <div className="drawer-overlay" onClick={onClose} />
-        <div className="drawer-content">
-            <ErrorBoundary name={ErrorBoundaryFileTree}>
-                <Panel
-                    className="file-tree-panel"
-                    title={isRepoLoaded ? <><FolderKanban size={ICON_SIZE_SM} />{repoInfo!.repo}</> : DefaultRepoTitle}
-                >
-                    {isRepoLoaded ? <FileTree /> : <div className="placeholder"><p>{FileTreePlaceholder}</p></div>}
-                </Panel>
-            </ErrorBoundary>
-        </div>
-    </div>
-);
-
 type AppLayoutProps = {
     repoInfo: RepoInfo | null;
     fileTree: GitHubFile[];
@@ -42,7 +26,6 @@ type AppLayoutProps = {
     rightPanelView: string;
     isRepoLoaded: boolean;
     isMobile: boolean;
-    isDrawerOpen: boolean;
     dispatch: React.Dispatch<any>;
     setRepoUrl: (url: string) => void;
     handleLoadRepo: () => void;
@@ -50,8 +33,6 @@ type AppLayoutProps = {
     handleClearError: () => void;
     handleToggleSettings: () => void;
     handleCloseSettings: () => void;
-    onToggleDrawer: () => void;
-    onCloseDrawer: () => void;
 };
 
 export const AppLayout: FC<AppLayoutProps> = ({
@@ -63,7 +44,6 @@ export const AppLayout: FC<AppLayoutProps> = ({
     rightPanelView,
     isRepoLoaded,
     isMobile,
-    isDrawerOpen,
     dispatch,
     setRepoUrl,
     handleLoadRepo,
@@ -71,8 +51,6 @@ export const AppLayout: FC<AppLayoutProps> = ({
     handleClearError,
     handleToggleSettings,
     handleCloseSettings,
-    onToggleDrawer,
-    onCloseDrawer,
 }) => {
     if (isMobile) {
         return (
@@ -94,7 +72,6 @@ export const AppLayout: FC<AppLayoutProps> = ({
             <PageHeader
                 onToggleSettings={handleToggleSettings}
                 isMobile={isMobile}
-                onToggleDrawer={onToggleDrawer}
             >
                 <RepoLoader
                     repoUrl={repoUrl}
