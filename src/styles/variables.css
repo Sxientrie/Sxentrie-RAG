@@ -1,7 +1,8 @@
 :root {
     /* Obsidian & Onyx Theme */
-    --primary: oklch(98% 0 0);
-    /* White/Platinum */
+    --primary: oklch(75% 0.16 160);
+    /* Emerald Green */
+    --shadow-bento: 0 4px 20px 0 oklch(0% 0 0 / 0.35), 0 1px 3px 0 oklch(0% 0 0 / 0.2);
     --foreground: oklch(98% 0 0);
     /* White */
     --muted-foreground: oklch(65% 0 0);

@@ -2,10 +2,12 @@
     background-color: var(--surface);
     border-radius: var(--rounded-app);
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-bento);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .panel.collapsed {
