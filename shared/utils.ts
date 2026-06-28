@@ -22,7 +22,7 @@ export const fetchFileContents = async (files: GitHubFile[]): Promise<FetchFileR
                 }
                 const text = await res.text();
                 const cappedText = text.length > MAX_GEMINI_FILE_SIZE ? text.substring(0, MAX_GEMINI_FILE_SIZE) + TRUNCATED_GEMINI_MESSAGE : text;
-                return SourceCodeTemplate.replace('{0}', file.path).replace('{1}', cappedText);
+                return SourceCodeTemplate.replace('{0}', () => file.path).replace('{1}', () => cappedText);
             } catch (e) {
                 failedFiles.push({ path: file.path, error: e instanceof Error ? e.message : String(e) });
                 return '';

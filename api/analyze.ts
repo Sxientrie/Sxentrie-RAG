@@ -3,6 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fetchFileContents, processThoughtStream } from './_utils';
 import { AnalysisConfig, ANALYSIS_SCOPES, GitHubFile } from '../src/domains/repository-analysis/domain';
+import { jwtVerify } from 'jose';
+import { SESSION_COOKIE_NAME } from './_constants';
 import {
   HTTP_STATUS_BAD_REQUEST,
   HTTP_STATUS_INTERNAL_SERVER_ERROR,
@@ -36,21 +38,64 @@ import {
   ExplanationTypeText,
   ExplanationTypeCode,
   LanguageGuidelines,
+  HTTP_STATUS_UNAUTHORIZED,
+  ErrorNotAuthenticated,
+  ErrorInvalidSession,
+  HttpHeaderCookie,
+  Semicolon,
+  Equals,
+  ErrorJwtSecretNotSet,
 } from '../shared/config';
 interface ServerlessRequest {
   json: () => Promise<{ repoName: string; files: GitHubFile[], config: AnalysisConfig }>;
+  headers: { get: (headerName: string) => string | null };
 }
 
 const loadPrompt = async (templateName: string, data: Record<string, string>): Promise<string> => {
   const filePath = path.join(process.cwd(), 'prompts', `${templateName}.md`);
   let content = await fs.readFile(filePath, 'utf-8');
   for (const [key, value] of Object.entries(data)) {
-    content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    content = content.replace(new RegExp(`{{${key}}}`, 'g'), () => value);
   }
   return content;
 };
 export default async function handler(request: ServerlessRequest) {
   try {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      return new Response(JSON.stringify({ error: ErrorJwtSecretNotSet }), { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
+    }
+
+    const cookieHeader = request.headers.get(HttpHeaderCookie);
+    if (!cookieHeader) {
+      return new Response(JSON.stringify({ error: ErrorNotAuthenticated }), { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
+    const cookies = Object.fromEntries(
+      cookieHeader.split(Semicolon).map(c => {
+        const trimmedCookie = c.trim();
+        const eqIndex = trimmedCookie.indexOf(Equals);
+        if (eqIndex === -1) {
+          return [trimmedCookie, ''];
+        }
+        const key = trimmedCookie.substring(0, eqIndex);
+        const value = trimmedCookie.substring(eqIndex + 1);
+        return [key, value];
+      })
+    );
+
+    const sessionJwt = cookies[SESSION_COOKIE_NAME];
+    if (!sessionJwt) {
+      return new Response(JSON.stringify({ error: ErrorNotAuthenticated }), { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
+    try {
+      const secret = new TextEncoder().encode(JWT_SECRET);
+      await jwtVerify(sessionJwt, secret);
+    } catch (error) {
+      return new Response(JSON.stringify({ error: ErrorInvalidSession }), { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
     const { repoName, files, config } = await request.json();
     const API_KEY = process.env.API_KEY;
     if (!API_KEY) {

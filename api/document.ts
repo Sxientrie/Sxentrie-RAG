@@ -1,14 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 import { AnalysisConfig, GitHubFile } from '../src/domains/repository-analysis/domain';
+import { jwtVerify } from 'jose';
+import { SESSION_COOKIE_NAME } from './_constants';
 import {
     HTTP_STATUS_BAD_REQUEST, HTTP_STATUS_INTERNAL_SERVER_ERROR, ErrorApiKeyNotSet,
     ErrorNoFilesForDocumentation, ErrorCouldNotFetchContent, FileContentsPlaceholder,
     GEMINI_TEMPERATURE_REGULAR, HttpHeaderContentType, REPORT_FILE_MIMETYPE, ErrorUnknown,
-    MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, FileHeaderTemplate, FileContentSeparator
+    MAX_GEMINI_FILE_SIZE, TRUNCATED_GEMINI_MESSAGE, FileHeaderTemplate, FileContentSeparator,
+    HTTP_STATUS_UNAUTHORIZED, ErrorNotAuthenticated, ErrorInvalidSession, HttpHeaderCookie,
+    Semicolon, Equals, ErrorJwtSecretNotSet
 } from '../shared/config';
 
 interface ServerlessRequest {
   json: () => Promise<{ files: GitHubFile[], config: AnalysisConfig, apiKey?: string }>;
+  headers: { get: (headerName: string) => string | null };
 }
 
 async function fetchFileContents(files: GitHubFile[]): Promise<string> {
@@ -56,6 +61,41 @@ ${FileContentsPlaceholder}
 `;
 export default async function handler(request: ServerlessRequest) {
   try {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      return new Response(ErrorJwtSecretNotSet, { status: HTTP_STATUS_INTERNAL_SERVER_ERROR });
+    }
+
+    const cookieHeader = request.headers.get(HttpHeaderCookie);
+    if (!cookieHeader) {
+      return new Response(ErrorNotAuthenticated, { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
+    const cookies = Object.fromEntries(
+      cookieHeader.split(Semicolon).map(c => {
+        const trimmedCookie = c.trim();
+        const eqIndex = trimmedCookie.indexOf(Equals);
+        if (eqIndex === -1) {
+          return [trimmedCookie, ''];
+        }
+        const key = trimmedCookie.substring(0, eqIndex);
+        const value = trimmedCookie.substring(eqIndex + 1);
+        return [key, value];
+      })
+    );
+
+    const sessionJwt = cookies[SESSION_COOKIE_NAME];
+    if (!sessionJwt) {
+      return new Response(ErrorNotAuthenticated, { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
+    try {
+      const secret = new TextEncoder().encode(JWT_SECRET);
+      await jwtVerify(sessionJwt, secret);
+    } catch (error) {
+      return new Response(ErrorInvalidSession, { status: HTTP_STATUS_UNAUTHORIZED });
+    }
+
     const { files, config, apiKey: userApiKey } = await request.json();
     const API_KEY = userApiKey || process.env.API_KEY;
 
@@ -76,7 +116,7 @@ export default async function handler(request: ServerlessRequest) {
       throw new Error(ErrorCouldNotFetchContent);
     }
 
-    const prompt = DOCUMENTATION_PROMPT.replace(FileContentsPlaceholder, fileContentsString);
+    const prompt = DOCUMENTATION_PROMPT.replace(FileContentsPlaceholder, () => fileContentsString);
     const baseModelConfig = {
       temperature: GEMINI_TEMPERATURE_REGULAR,
     };

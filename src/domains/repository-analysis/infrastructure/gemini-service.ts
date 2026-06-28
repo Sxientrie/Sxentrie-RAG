@@ -7,9 +7,10 @@ import {
   ErrorCouldNotParseApiKey,
   LabelInitializingAnalysisEngine,
   ErrorNoFilesForAnalysis, LabelFetchingAnalysisContents, StreamMessageAnalysis,
-  StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded
+  StreamMessageFinalizing, JsonResponseMimeType, ErrorRateLimitExceeded,
+  ErrorCouldNotFetchContent
 } from "../../../../shared/config";
-import { collectAllFiles } from "../application/file-tree-utils";
+import { collectAllFiles, findFileInTree } from "../application/file-tree-utils";
 import { ApiKeyError } from '../../../../shared/errors/api-key-error';
 import { ThoughtStreamParser } from './thought-stream-parser';
 import { fetchFileContents } from '../../../../shared/utils';
@@ -99,7 +100,7 @@ const getFilesForRequest = (
   selectedFile: { path: string; content: string; isImage?: boolean } | null
 ): GitHubFile[] => {
   if (config.scope === ANALYSIS_SCOPES.FILE && selectedFile && !selectedFile.isImage) {
-    const fileNode = collectAllFiles(fileTree).find(f => f.path === selectedFile.path);
+    const fileNode = findFileInTree(selectedFile.path, fileTree);
     return fileNode ? [fileNode] : [];
   } else {
     const allFiles = collectAllFiles(fileTree);

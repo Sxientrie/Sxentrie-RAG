@@ -46,6 +46,21 @@ const parsePatterns = (patternsStr: string): RegExp[] => {
     .map(globToRegex);
 };
 
+export const findFileInTree = (path: string, tree: GitHubFile[]): GitHubFile | null => {
+  for (const node of tree) {
+    if (node.path === path) {
+      return node;
+    }
+    if (node.type === 'dir' && node.content) {
+      const found = findFileInTree(path, node.content);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+};
+
 export const getFilesForAnalysis = (options: {
   fileTree: GitHubFile[];
   config: AnalysisConfig;
@@ -54,8 +69,7 @@ export const getFilesForAnalysis = (options: {
   const { fileTree, config, selectedFile } = options;
 
   if (config.scope === ANALYSIS_SCOPES.FILE && selectedFile) {
-    const allFiles = collectAllFiles(fileTree);
-    const fileNode = allFiles.find(f => f.path === selectedFile.path);
+    const fileNode = findFileInTree(selectedFile.path, fileTree);
     return fileNode ? [fileNode] : [];
   }
 

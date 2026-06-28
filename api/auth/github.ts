@@ -48,6 +48,9 @@ export default async function handler(request: ServerlessRequest) {
         code,
       }),
     });
+    if (!tokenResponse.ok) {
+      throw new Error(`Failed to fetch access token: ${tokenResponse.statusText}`);
+    }
     const tokenData: GitHubTokenResponse = await tokenResponse.json();
     if (tokenData.error) {
       throw new Error(tokenData.error_description);
@@ -58,7 +61,13 @@ export default async function handler(request: ServerlessRequest) {
         [HttpHeaderAuthorization]: `${AuthBearerPrefix}${accessToken}`,
       },
     });
+    if (!userResponse.ok) {
+      throw new Error(`Failed to fetch user data: ${userResponse.statusText}`);
+    }
     const userData: GitHubUserResponse = await userResponse.json();
+    if (!userData || typeof userData.id === 'undefined' || userData.id === null) {
+      throw new Error('Failed to retrieve user ID from GitHub profile response');
+    }
     const userProfile = {
       id: userData.id.toString(),
       name: userData.name || userData.login,

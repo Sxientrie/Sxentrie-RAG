@@ -13,7 +13,7 @@ import {
     AriaLabelClearSearch, ErrorBoundaryFileTreeName, NoFilesFoundTemplate
 } from "../../../../shared/config";
 import { SpecificFilenames } from "../../../../shared/config";
-const getFileIcon = (fileName: string): JSX.Element => {
+const getFileIcon = (fileName: string): React.ReactElement => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const lowerCaseFileName = fileName.toLowerCase();
     if (ImageFileRegex.test(fileName)) {

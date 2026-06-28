@@ -81,6 +81,9 @@ export const AuthProvider: FC<{children: ReactNode}> = ({ children }) => {
       if (event.origin !== window.location.origin) {
         return;
       }
+      if (!event.data || typeof event.data !== 'object') {
+        return;
+      }
       const { type, user, error } = event.data;
       if (type === AUTH_SUCCESS_MESSAGE_TYPE && user) {
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user } });

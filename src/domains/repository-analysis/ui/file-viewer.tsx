@@ -118,7 +118,7 @@ export const FileViewer: FC<FileViewerProps> = ({ onError }) => {
     }
     return style;
   }, [isWrapEnabled]);
-  const renderPlaceholder = useCallback((): JSX.Element => {
+  const renderPlaceholder = useCallback((): React.ReactElement => {
     if (!isRepoLoaded) {
       return (
         <div className="onboarding-guide">
